@@ -22,9 +22,11 @@ class StarredSessionStore(private val dataStore: DataStore<Preferences>) : Starr
 
     override val starredIds: Flow<Set<String>> = sessions.map { it.keys }
 
-    override suspend fun setStarred(sessionId: String, title: String, isStarred: Boolean) = edit { sessions ->
-        if (isStarred) sessions + (sessionId to StarredSession(title)) else sessions - sessionId
+    override suspend fun star(sessionId: String, title: String, currentStatus: String?) = edit { sessions ->
+        sessions + (sessionId to StarredSession(title, currentStatus))
     }
+
+    override suspend fun unstar(sessionId: String) = edit { sessions -> sessions - sessionId }
 
     suspend fun recordStatuses(statuses: Map<String, String>) = edit { sessions ->
         sessions.mapValues { (id, session) -> statuses[id]?.let { session.copy(lastStatus = it) } ?: session }

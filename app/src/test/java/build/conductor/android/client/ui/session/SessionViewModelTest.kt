@@ -229,8 +229,13 @@ class SessionViewModelTest {
     fun `the star follows the starred sessions store`() = runTest {
         val starred = object : StarredSessions {
             override val starredIds = MutableStateFlow(emptySet<String>())
-            override suspend fun setStarred(sessionId: String, title: String, isStarred: Boolean) {
-                starredIds.value = if (isStarred) setOf(sessionId) else emptySet()
+            var starredStatus: String? = null
+            override suspend fun star(sessionId: String, title: String, currentStatus: String?) {
+                starredIds.value = setOf(sessionId)
+                starredStatus = currentStatus
+            }
+            override suspend fun unstar(sessionId: String) {
+                starredIds.value = emptySet()
             }
         }
         val viewModel = SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", starred)
@@ -241,6 +246,10 @@ class SessionViewModelTest {
 
         assertTrue(viewModel.uiState.value.isStarred)
         assertEquals(setOf(FakeConductorRepository.SESSION_ID), starred.starredIds.value)
+        assertEquals("idle", starred.starredStatus)
+        viewModel.toggleStar()
+        runCurrent()
+        assertFalse(viewModel.uiState.value.isStarred)
     }
 
     private companion object {

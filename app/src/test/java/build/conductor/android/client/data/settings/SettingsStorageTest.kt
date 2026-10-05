@@ -55,11 +55,12 @@ class SettingsStorageTest {
     fun `starred sessions are added, updated and removed`() = runTest {
         val store = StarredSessionStore(newDataStore("starred"))
 
-        store.setStarred("s1", "Fix CI", isStarred = true)
+        store.star("s1", "Fix CI", currentStatus = "idle")
+        assertEquals(StarredSession("Fix CI", "idle"), store.snapshot()["s1"])
         store.recordStatuses(mapOf("s1" to "working", "s2" to "idle"))
         assertEquals(StarredSession("Fix CI", "working"), store.snapshot()["s1"])
         assertEquals(setOf("s1"), store.starredIds.first())
-        store.setStarred("s1", "Fix CI", isStarred = false)
+        store.unstar("s1")
         assertTrue(store.snapshot().isEmpty())
     }
 

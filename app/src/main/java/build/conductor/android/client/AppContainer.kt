@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.stateIn
 
 /** Creates the app's long-lived objects once. Screens get them through [LocalAppContainer]. */
 class AppContainer(context: Context) {
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val settingsDataStore = PreferenceDataStoreFactory.create { context.preferencesDataStoreFile(SETTINGS_FILE) }
     private val keystoreKey by lazy { androidKeystoreKey(KEYSTORE_ALIAS) }
 
@@ -28,7 +28,7 @@ class AppContainer(context: Context) {
 
     val apiKeyState: StateFlow<ApiKeyState> = apiKeyStore.apiKey
         .map { key -> if (key.isNullOrBlank()) ApiKeyState.Missing else ApiKeyState.Present(key) }
-        .stateIn(appScope, SharingStarted.Eagerly, ApiKeyState.Loading)
+        .stateIn(applicationScope, SharingStarted.Eagerly, ApiKeyState.Loading)
 
     val starredSessionStore = StarredSessionStore(
         PreferenceDataStoreFactory.create { context.preferencesDataStoreFile(STARRED_SESSIONS_FILE) },

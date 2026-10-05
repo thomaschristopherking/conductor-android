@@ -11,6 +11,10 @@ enum class AgentStatus {
     val isSettled: Boolean
         get() = this == IDLE || this == ERROR
 
+    /** The value that the API uses, or null for [UNKNOWN]. */
+    val apiValue: String?
+        get() = if (this == UNKNOWN) null else name.lowercase()
+
     companion object {
         fun from(value: String?): AgentStatus = when (value) {
             "working" -> WORKING

@@ -28,15 +28,24 @@ import build.conductor.android.client.ui.workspaces.CreateWorkspaceScreen
 import build.conductor.android.client.ui.workspaces.CreateWorkspaceViewModel
 import build.conductor.android.client.ui.workspaces.WorkspacesScreen
 import build.conductor.android.client.ui.workspaces.WorkspacesViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 
 private const val FIRST_RUN_NOTICE = "Welcome. Paste a Conductor API key to connect the app to your cloud workspaces."
 private const val REJECTED_KEY_NOTICE = "Conductor rejected the saved API key. Paste a new key to continue."
 
 @Composable
-fun AppNavHost(container: AppContainer, hasApiKey: Boolean) {
+fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: MutableStateFlow<SessionRoute?>) {
     val navController = rememberNavController()
     LaunchedEffect(container) {
         container.repository.unauthorizedEvents.collect { navController.openSettingsAsRoot(REJECTED_KEY_NOTICE) }
+    }
+    LaunchedEffect(requestedSession, hasApiKey) {
+        if (!hasApiKey) return@LaunchedEffect
+        requestedSession.filterNotNull().collect { route ->
+            navController.navigate(route)
+            requestedSession.value = null
+        }
     }
     val start: Any = if (hasApiKey) ProjectsRoute else SettingsRoute(FIRST_RUN_NOTICE)
     NavHost(navController = navController, startDestination = start) {

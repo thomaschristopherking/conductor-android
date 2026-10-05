@@ -169,7 +169,9 @@ class SessionViewModel(
 
     fun toggleStar() {
         val current = state.value
-        viewModelScope.launch { starredSessions.setStarred(sessionId, current.title, !current.isStarred) }
+        viewModelScope.launch {
+            if (current.isStarred) starredSessions.unstar(sessionId) else starredSessions.star(sessionId, current.title, current.status.apiValue)
+        }
     }
 
     private fun shouldPoll(): Boolean =
