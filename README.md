@@ -16,6 +16,8 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
 - **New workspace.** Name, branch, agent, model, effort and a first prompt. Your favourite models from the Conductor app are shortcuts.
 - **Workspace detail.** The sessions of a workspace, each with its agent status. A session whose agent waits on a question shows "Question for you". Create a session, rename the workspace, archive the workspace, or copy and share its Conductor link.
 - **Session.** The transcript as a chat, with markdown and code blocks. A composer at the bottom moves up with the keyboard. "Stop" cancels the agent's turn.
+  - The chat opens at the newest message. New messages stay in view while you are at the newest message.
+  - When you scroll back to older messages, new messages do not move the chat. A round arrow button takes you back to the newest message. When you send a prompt, the chat goes to the newest message.
   - When the agent asks you a question, the chat shows the question with its options. Choose the options, or type in "Other", then tap "Send answers".
   - While the agent works, the app polls every 3 seconds for new messages only.
   - The badge shows "Working", "Waiting for you" (the API status `idle`) or "Error".
@@ -60,6 +62,7 @@ The unit tests run on the JVM. They do not need a device or the network.
 - `data/transcript/TranscriptParserTest.kt` turns live transcript events into chat rows.
 - `data/ModelCatalogTest.kt` compares the agent and model lists with `docs/openapi.json`. It fails when the spec changes.
 - `ui/session/SessionViewModelTest.kt` tests polling, back-off, sending and cancelling with virtual time.
+- `ui/session/TranscriptScrollTest.kt` shows the chat list in Robolectric. It tests the scroll position and the button that goes to the newest message.
 
 The fixtures in `app/src/test/resources/fixtures/` are scrubbed copies of live API responses. To capture them again, run:
 
