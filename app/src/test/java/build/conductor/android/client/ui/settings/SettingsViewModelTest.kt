@@ -1,5 +1,8 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package build.conductor.android.client.ui.settings
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import app.cash.turbine.test
 import build.conductor.android.client.ApiKeyState

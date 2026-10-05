@@ -1,5 +1,8 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package build.conductor.android.client
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher

@@ -1,5 +1,8 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package build.conductor.android.client.ui.workspaces
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import app.cash.turbine.test
 import build.conductor.android.client.FakeConductorRepository
 import build.conductor.android.client.MainDispatcherRule

@@ -1,5 +1,8 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package build.conductor.android.client.ui.projects
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import build.conductor.android.client.FakeConductorRepository
 import build.conductor.android.client.MainDispatcherRule
 import build.conductor.android.client.data.api.ApiException
