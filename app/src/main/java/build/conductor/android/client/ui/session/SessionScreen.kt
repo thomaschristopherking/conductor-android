@@ -1,6 +1,12 @@
 package build.conductor.android.client.ui.session
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,10 +18,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
@@ -32,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -42,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,12 +59,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import build.conductor.android.client.data.AgentStatus
+import build.conductor.android.client.data.transcript.TranscriptItem
 import build.conductor.android.client.ui.components.AgentStatusBadge
 import build.conductor.android.client.ui.components.EmptyView
 import build.conductor.android.client.ui.components.ErrorView
 import build.conductor.android.client.ui.components.LoadingView
 import build.conductor.android.client.ui.components.copyDeepLink
 import build.conductor.android.client.ui.components.shareDeepLink
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,6 +117,7 @@ private fun SessionActions(state: SessionUiState, viewModel: SessionViewModel, o
 
 @Composable
 private fun SessionBody(state: SessionUiState, viewModel: SessionViewModel, padding: PaddingValues) {
+    val transcriptScroll = rememberTranscriptScrollState()
     Column(modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
         StatusBar(state, onCancel = viewModel::cancel)
         state.connectionProblem?.let { ConnectionBanner(it) }
@@ -115,11 +126,11 @@ private fun SessionBody(state: SessionUiState, viewModel: SessionViewModel, padd
                 state.isLoading && state.items.isEmpty() -> LoadingView()
                 state.loadError != null -> ErrorView(state.loadError, viewModel::load)
                 state.items.isEmpty() -> EmptyView("No messages yet", "Send a prompt to start the agent.")
-                else -> Transcript(state)
+                else -> Transcript(state.items, transcriptScroll)
             }
         }
         HorizontalDivider()
-        Composer(state, onDraftChange = viewModel::onDraftChange, onSend = viewModel::send)
+        Composer(state, onDraftChange = viewModel::onDraftChange, onSend = { transcriptScroll.followNewest(); viewModel.send() })
     }
 }
 
@@ -160,20 +171,34 @@ private fun ConnectionBanner(message: String) {
 }
 
 @Composable
-private fun Transcript(state: SessionUiState) {
-    val listState = rememberLazyListState()
-    LaunchedEffect(state.items.size) {
-        val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-        val isNearEnd = lastVisible >= listState.layoutInfo.totalItemsCount - AUTO_SCROLL_THRESHOLD
-        if (state.items.isNotEmpty() && isNearEnd) listState.animateScrollToItem(state.items.lastIndex)
+internal fun Transcript(items: List<TranscriptItem>, scrollState: TranscriptScrollState) {
+    val coroutineScope = rememberCoroutineScope()
+    LaunchedEffect(scrollState) { scrollState.trackUserPosition() }
+    LaunchedEffect(items.lastOrNull()?.key) { scrollState.keepNewestInView() }
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = scrollState.listState,
+            reverseLayout = true,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.Bottom),
+        ) {
+            items(items.asReversed(), key = { it.key }) { TranscriptRow(it) }
+        }
+        JumpToNewestButton(
+            isVisible = !scrollState.isFollowingNewest,
+            onClick = { coroutineScope.launch { scrollState.scrollToNewest() } },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+        )
     }
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        items(state.items, key = { it.key }) { TranscriptRow(it) }
+}
+
+@Composable
+private fun JumpToNewestButton(isVisible: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    AnimatedVisibility(visible = isVisible, enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut(), modifier = modifier) {
+        SmallFloatingActionButton(onClick = onClick) {
+            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Scroll to the newest message")
+        }
     }
 }
 
@@ -197,5 +222,4 @@ private fun Composer(state: SessionUiState, onDraftChange: (String) -> Unit, onS
     }
 }
 
-private const val AUTO_SCROLL_THRESHOLD = 3
 private const val COMPOSER_MAX_LINES = 6
