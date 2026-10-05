@@ -1,6 +1,19 @@
 {
   "data": [
     {
+      "id": "2b23711e-647c-4f83-9e13-2e799e6b5ed2",
+      "name": "Keep Composer's Tailscale Up #135",
+      "state": "initializing",
+      "repoUrl": "https://github.com/example-org/example-project-1",
+      "createdAt": "2026-10-05T07:00:41.837Z",
+      "deepLink": "conductor://workspace?id=2b23711e-647c-4f83-9e13-2e799e6b5ed2",
+      "projectId": "0be583de-aa7d-4f8a-9ad4-6716bb253bc5",
+      "lifecycleStep": "building_snapshot",
+      "creatorId": "e24fafdb-687b-47e0-94dd-5e1a663d136c",
+      "creatorName": "Test User",
+      "lastActivityAt": "2026-10-05T07:00:42.247Z"
+    },
+    {
       "id": "b11ecee3-fa24-4f4d-869b-e85dda1cb275",
       "name": "Example workspace 15",
       "state": "archived",
@@ -23,18 +36,6 @@
       "creatorId": "e24fafdb-687b-47e0-94dd-5e1a663d136c",
       "creatorName": "Test User",
       "lastActivityAt": "2026-10-05T05:07:16.497Z"
-    },
-    {
-      "id": "d7b74d65-10e4-45bc-9295-2ba2dee9e378",
-      "name": "Example workspace 17",
-      "state": "archived",
-      "repoUrl": "https://github.com/example-org/example-project-1",
-      "createdAt": "2026-10-05T04:00:18.992Z",
-      "deepLink": "conductor://workspace?id=d7b74d65-10e4-45bc-9295-2ba2dee9e378",
-      "projectId": "0be583de-aa7d-4f8a-9ad4-6716bb253bc5",
-      "creatorId": "e24fafdb-687b-47e0-94dd-5e1a663d136c",
-      "creatorName": "Test User",
-      "lastActivityAt": "2026-10-05T04:06:56.010Z"
     }
   ],
   "offset": 0,

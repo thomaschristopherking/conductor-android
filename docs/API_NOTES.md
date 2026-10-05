@@ -29,6 +29,7 @@ A project contains workspaces. A workspace contains sessions. A session contains
 ## Pagination and errors
 
 - List endpoints take `limit` and `offset`. They return `{ "data": [...], "offset": n, "hasMore": bool }`.
+- The default `limit` is 5. The spec does not say this. The app always sends `limit=100`, and follows `hasMore`.
 - An error body is a `StructuredError`. Only `userMessage` is required. The live API also sends `code`, `source`, `traceId` and sometimes `details`.
 - The live API returns 404 with `code: "NOT_FOUND"` and 400 with `code: "INVALID_REQUEST"`.
 - The spec does not document HTTP 429. The app treats 429 and 5xx as errors that the user can retry.
@@ -132,7 +133,8 @@ The link opens the Conductor desktop app. Android cannot open it, so the app off
 4. **No session status in the session object.** The app calls `GET /v0/sessions/{id}/status` for each session.
 5. **`content` is untyped in the spec.** The section "Message content" above describes the shape that the live API sends.
 6. **The `/me` endpoint is outside `/v0`.**
-7. **Python's default user agent gets HTTP 403.** The edge network blocks the `Python-urllib` user agent. An `okhttp/5.5.0` user agent gets HTTP 200. The capture script sends a curl user agent.
+7. **The default page size is 5.** `GET /v0/projects` with no `limit` returns 5 of 9 projects and `hasMore: true`. One workspace has 89 sessions, so the app limits the status calls to 6 at a time.
+8. **Python's default user agent gets HTTP 403.** The edge network blocks the `Python-urllib` user agent. An `okhttp/5.5.0` user agent gets HTTP 200. The capture script sends a curl user agent.
 
 ## Fixtures
 

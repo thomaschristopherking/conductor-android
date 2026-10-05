@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 data class SessionRow(val session: Session, val status: AgentStatus)
 
@@ -84,7 +86,8 @@ class WorkspaceDetailViewModel(
 
     /** One failed status call shows that session as unknown; it does not fail the screen. */
     private suspend fun withStatuses(sessions: List<Session>): List<SessionRow> = coroutineScope {
-        sessions.map { session -> async { SessionRow(session, statusOf(session.id)) } }.awaitAll()
+        val permits = Semaphore(MAX_PARALLEL_STATUS_CALLS)
+        sessions.map { session -> async { permits.withPermit { SessionRow(session, statusOf(session.id)) } } }.awaitAll()
     }
 
     private suspend fun statusOf(sessionId: String): AgentStatus = try {
@@ -151,6 +154,9 @@ class WorkspaceDetailViewModel(
             copy(isRefreshing = false, detail = exception.toFailedState())
         }
 }
+
+/** A workspace can hold close to 100 sessions; this keeps the status calls from flooding the API. */
+private const val MAX_PARALLEL_STATUS_CALLS = 6
 
 private fun LoadState<WorkspaceDetail>.mapDetail(transform: (WorkspaceDetail) -> WorkspaceDetail): LoadState<WorkspaceDetail> =
     if (this is LoadState.Loaded) LoadState.Loaded(transform(value)) else this

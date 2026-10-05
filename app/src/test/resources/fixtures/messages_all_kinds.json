@@ -31,29 +31,6 @@
       "receivedAt": "2026-09-30T10:32:19.942Z"
     },
     {
-      "id": "de3f8a08-0c9d-4e07-a13d-3bb12d3c78b0",
-      "sessionId": "a78fd5c1-2b0f-474d-a076-6f8e5fb5e602",
-      "sessionIndex": 243,
-      "type": "agent",
-      "content": {
-        "eventId": "de3f8a08-0c9d-4e07-a13d-3bb12d3c78b0",
-        "type": "agent",
-        "rawPayload": {
-          "type": "tool_progress",
-          "tool_use_id": "toolu_01SiDpAS3fyQ73xvFqoF2Nhy-heartbeat-0",
-          "tool_name": "Bash",
-          "parent_tool_use_id": "toolu_01SiDpAS3fyQ73xvFqoF2Nhy",
-          "elapsed_time_seconds": 30,
-          "heartbeat": true,
-          "session_id": "a78fd5c1-2b0f-474d-a076-6f8e5fb5e602",
-          "uuid": "2e21044b-ef38-422c-9c9e-4b6c891f4185"
-        },
-        "userMessageId": "40185ade-dc57-4576-a139-7cc437d28e66",
-        "turnId": "40185ade-dc57-4576-a139-7cc437d28e66"
-      },
-      "receivedAt": "2026-09-30T10:40:09.894Z"
-    },
-    {
       "id": "5b59a37b-0838-432c-b74a-ce79ce53b2d5",
       "sessionId": "a78fd5c1-2b0f-474d-a076-6f8e5fb5e602",
       "sessionIndex": 461,
@@ -785,6 +762,50 @@
         "turnId": "f4b2ebe5-77b2-46e0-b128-1ac95e784479"
       },
       "receivedAt": "2026-10-05T06:38:54.768Z"
+    },
+    {
+      "id": "68f31f64-b3c6-44e7-96fa-00bb8b2ff846",
+      "sessionId": "c63cedf5-266b-4ebb-a045-df4b947c90e6",
+      "sessionIndex": 140,
+      "type": "agent",
+      "content": {
+        "eventId": "68f31f64-b3c6-44e7-96fa-00bb8b2ff846",
+        "type": "agent",
+        "rawPayload": {
+          "type": "tool_progress",
+          "tool_use_id": "toolu_016NUxwtwXCghcxNqbtMLNcc-heartbeat-0",
+          "tool_name": "Bash",
+          "parent_tool_use_id": "toolu_016NUxwtwXCghcxNqbtMLNcc",
+          "elapsed_time_seconds": 30,
+          "heartbeat": true,
+          "session_id": "c63cedf5-266b-4ebb-a045-df4b947c90e6",
+          "uuid": "6df6c148-f90d-45f2-8c61-880287724af4"
+        },
+        "userMessageId": "f4b2ebe5-77b2-46e0-b128-1ac95e784479",
+        "turnId": "f4b2ebe5-77b2-46e0-b128-1ac95e784479"
+      },
+      "receivedAt": "2026-10-05T06:45:08.111Z"
+    },
+    {
+      "id": "c97235d0-269c-445b-917d-f4041cda8c75",
+      "sessionId": "c63cedf5-266b-4ebb-a045-df4b947c90e6",
+      "sessionIndex": 168,
+      "type": "agent",
+      "content": {
+        "eventId": "c97235d0-269c-445b-917d-f4041cda8c75",
+        "type": "agent",
+        "rawPayload": {
+          "type": "system",
+          "subtype": "dev_intent",
+          "kind": "android_app",
+          "trigger": "android_command",
+          "uuid": "3a6d6299-5deb-4d53-ba2e-882f1f86b385",
+          "session_id": "c63cedf5-266b-4ebb-a045-df4b947c90e6"
+        },
+        "userMessageId": "f4b2ebe5-77b2-46e0-b128-1ac95e784479",
+        "turnId": "f4b2ebe5-77b2-46e0-b128-1ac95e784479"
+      },
+      "receivedAt": "2026-10-05T06:48:08.495Z"
     }
   ],
   "offset": 0,

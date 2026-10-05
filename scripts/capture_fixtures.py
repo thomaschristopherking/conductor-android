@@ -23,7 +23,7 @@ STRUCTURAL_KEYS = {
     "effort", "agent", "collaborationMode", "thinkingLevel", "resume", "assetId", "task_id", "hook_id",
     "hook_event", "hook_name", "rateLimitType", "overageStatus", "service_tier", "workspaceId", "projectId",
     "creatorId", "userId", "organizationId", "authMethod", "code", "source", "traceId", "request_id",
-    "repoUrl", "gitRemote", "creatorName", "email",
+    "repoUrl", "gitRemote", "creatorName", "email", "userMessage",
 }
 FREE_TEXT = "Example text."
 MARKDOWN_SAMPLE = (

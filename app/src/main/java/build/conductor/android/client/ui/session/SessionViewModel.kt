@@ -6,6 +6,7 @@ import build.conductor.android.client.data.AgentStatus
 import build.conductor.android.client.data.ConductorRepository
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.Message
+import build.conductor.android.client.data.settings.StarredSessions
 import build.conductor.android.client.data.api.SessionStatus
 import build.conductor.android.client.data.transcript.Delivery
 import build.conductor.android.client.data.transcript.TranscriptItem
@@ -19,7 +20,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -271,16 +271,5 @@ private class TranscriptBuffer {
 
     fun containsPrompt(pending: TranscriptItem.UserPrompt): Boolean = items.any {
         it is TranscriptItem.UserPrompt && (it.clientMessageId == pending.clientMessageId || it.text == pending.text)
-    }
-}
-
-/** The sessions that the user starred for notifications. */
-interface StarredSessions {
-    val starredIds: Flow<Set<String>>
-    suspend fun setStarred(sessionId: String, title: String, isStarred: Boolean)
-
-    object None : StarredSessions {
-        override val starredIds: Flow<Set<String>> = flowOf(emptySet())
-        override suspend fun setStarred(sessionId: String, title: String, isStarred: Boolean) = Unit
     }
 }

@@ -1,9 +1,9 @@
 {
-  "userMessage": "Example text.",
+  "userMessage": "Cannot combine `after` with `offset`; use one or the other.",
   "code": "INVALID_REQUEST",
   "source": "network",
   "details": {
     "origin": "roundhouse"
   },
-  "traceId": "9513f95798afe90ba8503119af83833e"
+  "traceId": "3084ca3ce80cde36326652ea437e2c52"
 }
