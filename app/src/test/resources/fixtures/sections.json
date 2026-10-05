@@ -1,0 +1,78 @@
+{
+  "data": [
+    {
+      "id": "31fdb8af-c31c-47e8-b455-b1a69401bfdc",
+      "name": "Example section 1",
+      "workspaceIds": [
+        "2b6ea7a3-c8d6-4d64-a2d6-eb0ea3143c0d",
+        "875b069a-15a1-4059-b0dd-f4f7e3726cfe",
+        "9ca4dc49-f2d3-43a0-8732-ce0bf6b074ae",
+        "a52d7390-5f60-467f-ba9d-ae072c9deab2",
+        "c3a713fd-8b7c-44fb-bc39-b86b9e7c1c5d",
+        "ca21881e-0a62-4634-a7b5-460cecf889b6",
+        "f057d67b-9cf6-4de4-8b70-e8d6bee2d158",
+        "fb090ee9-3b52-4e2e-bd17-e817dd96028c"
+      ],
+      "kind": "custom"
+    },
+    {
+      "id": "07e9c654-6e53-4327-8095-9b79fb893347",
+      "name": "Example section 2",
+      "workspaceIds": [
+        "0d8575c4-c957-4447-80fc-833513961e8b",
+        "21963617-04e4-4a92-857c-923db1a2bc25",
+        "25934ea1-c252-4e53-84f5-367a1fdb0d50",
+        "28948c94-54ba-4398-aee3-daa009f84237",
+        "3069ea4b-dbaa-4e38-b054-864856057096",
+        "31ca01b0-bfb2-4fc8-b0ba-6b695b6f9a30",
+        "35fc13c4-7157-4274-93d9-9421b1c3d6a7",
+        "53754ca9-6b5b-419e-8953-39e7a2d3f1cb",
+        "69fcdc77-48c8-40c3-99c8-23aa997c853a",
+        "6fdb91e1-6bd3-4387-9967-541e2c2964ca",
+        "9f5bbd80-bde4-4443-b302-cfd0be7224bc",
+        "b9d2b3e2-0c61-4cbd-8731-ba00504f8b2e",
+        "c799d5da-c10a-456a-87b4-6e6974a30d84",
+        "d170c9d8-4710-41da-90ac-65125cad1d07",
+        "d296bbe1-2ee7-4f18-b947-eaed0daf5e11",
+        "e25a9a1c-d1b5-4f3c-9a4d-9cafd16a63e1",
+        "e438a6af-67f1-4d98-91e5-8be29248f9cf",
+        "fd2d1fef-a34c-4fd3-8043-fd1e4e3a4537"
+      ],
+      "kind": "custom"
+    },
+    {
+      "id": "8a763a0f-89fc-419a-832c-da0a170e5ef6",
+      "name": "Example section 3",
+      "workspaceIds": [
+        "19779ce3-7008-4bcf-8c29-e06e4d422e8b",
+        "48745115-4470-4329-b64c-59c40d8f71f2",
+        "c79f2b54-e462-42eb-8190-f9e877cbee3c"
+      ],
+      "kind": "custom"
+    },
+    {
+      "id": "84bd0649-3304-4e06-90d1-d7c68f4d26b2",
+      "name": "Example section 4",
+      "workspaceIds": [
+        "3ae68ebc-0dc0-4064-b716-ef9f63530f1f",
+        "4ba62c21-4f3c-4472-b827-a695dbd412ac",
+        "52a73d2f-fad3-49d0-9f7f-bf3d50fdcd7e",
+        "5ec1e6c9-310e-4f49-b64c-a53e3b4627ba",
+        "66b8a1ed-6a27-4c2f-b068-b7d5e6a51a59",
+        "92a3cd50-340b-440b-841e-804a42fc695a",
+        "df4699fc-6a66-4b91-a1f8-23e365518408"
+      ],
+      "kind": "custom"
+    },
+    {
+      "id": "5de6e50a-503e-4317-84c2-372b81ffd669",
+      "name": "Example section 5",
+      "workspaceIds": [
+        "b439d443-dfef-476b-92b3-9090a918de02"
+      ],
+      "kind": "custom"
+    }
+  ],
+  "offset": 0,
+  "hasMore": false
+}

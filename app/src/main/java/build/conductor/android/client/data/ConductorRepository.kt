@@ -12,6 +12,7 @@ import build.conductor.android.client.data.api.Me
 import build.conductor.android.client.data.api.Message
 import build.conductor.android.client.data.api.Page
 import build.conductor.android.client.data.api.Project
+import build.conductor.android.client.data.api.Section
 import build.conductor.android.client.data.api.RenameRequest
 import build.conductor.android.client.data.api.SendMessageRequest
 import build.conductor.android.client.data.api.SentMessage
@@ -33,6 +34,8 @@ interface ConductorRepository {
     suspend fun testApiKey(apiKey: String): Me
     suspend fun projects(): List<Project>
     suspend fun workspaces(projectId: String, includeArchived: Boolean, offset: Int): Page<Workspace>
+    suspend fun allWorkspaces(includeArchived: Boolean): List<Workspace>
+    suspend fun sections(): List<Section>
     suspend fun workspace(workspaceId: String): Workspace
     suspend fun createWorkspace(request: CreateWorkspaceRequest): CreatedWorkspace
     suspend fun renameWorkspace(workspaceId: String, name: String): Workspace
@@ -57,6 +60,11 @@ class ApiConductorRepository(private val api: ConductorApi) : ConductorRepositor
 
     override suspend fun workspaces(projectId: String, includeArchived: Boolean, offset: Int): Page<Workspace> =
         call { api.workspaces(repo = projectId, includeArchived = includeArchived.takeIf { it }, offset = offset) }
+
+    override suspend fun allWorkspaces(includeArchived: Boolean): List<Workspace> =
+        call { collectAllPages { offset -> api.workspaces(includeArchived = includeArchived.takeIf { it }, offset = offset) } }
+
+    override suspend fun sections(): List<Section> = call { collectAllPages { offset -> api.sections(offset = offset) } }
 
     override suspend fun workspace(workspaceId: String): Workspace = call { api.workspace(workspaceId) }
 

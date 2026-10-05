@@ -6,7 +6,13 @@ import kotlinx.serialization.Serializable
 data class SettingsRoute(val notice: String? = null)
 
 @Serializable
+data object HomeRoute
+
+@Serializable
 data object ProjectsRoute
+
+@Serializable
+data object ChooseProjectRoute
 
 @Serializable
 data class WorkspacesRoute(val projectId: String, val projectName: String)

@@ -16,6 +16,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import build.conductor.android.client.AppContainer
+import build.conductor.android.client.ui.home.HomeActions
+import build.conductor.android.client.ui.home.HomeScreen
+import build.conductor.android.client.ui.home.HomeViewModel
 import build.conductor.android.client.ui.projects.ProjectsScreen
 import build.conductor.android.client.ui.projects.ProjectsViewModel
 import build.conductor.android.client.ui.session.SessionScreen
@@ -48,7 +51,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
             requestedSession.value = null
         }
     }
-    val start: Any = if (hasApiKey) ProjectsRoute else SettingsRoute(FIRST_RUN_NOTICE)
+    val start: Any = if (hasApiKey) HomeRoute else SettingsRoute(FIRST_RUN_NOTICE)
     NavHost(navController = navController, startDestination = start) {
         composable<SettingsRoute> { entry ->
             val hasPrevious = navController.previousBackStackEntry != null
@@ -56,15 +59,37 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
                 viewModel = viewModel { SettingsViewModel(container.repository, container.apiKeyStore, container.apiKeyState) },
                 appearanceViewModel = viewModel { AppearanceViewModel(container.appearanceStore) },
                 notice = entry.toRoute<SettingsRoute>().notice,
-                onKeySaved = { if (hasPrevious) navController.popBackStack() else navController.openProjectsAsRoot() },
+                onKeySaved = { if (hasPrevious) navController.popBackStack() else navController.openHomeAsRoot() },
                 onBack = if (hasPrevious) ({ navController.popBackStack() }) else null,
+            )
+        }
+        composable<HomeRoute> {
+            HomeScreen(
+                viewModel = viewModel { HomeViewModel(container.repository) },
+                actions = HomeActions(
+                    onOpenWorkspace = { navController.navigate(WorkspaceRoute(it.id)) },
+                    onCreateWorkspace = { navController.navigate(ChooseProjectRoute) },
+                    onOpenProjects = { navController.navigate(ProjectsRoute) },
+                    onOpenSettings = { navController.navigate(SettingsRoute()) },
+                ),
             )
         }
         composable<ProjectsRoute> {
             ProjectsScreen(
                 viewModel = viewModel { ProjectsViewModel(container.repository) },
+                title = "Projects",
                 onOpenProject = { navController.navigate(WorkspacesRoute(it.id, it.name)) },
-                onOpenSettings = { navController.navigate(SettingsRoute()) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable<ChooseProjectRoute> {
+            ProjectsScreen(
+                viewModel = viewModel { ProjectsViewModel(container.repository) },
+                title = "Choose a project",
+                onOpenProject = { project ->
+                    navController.navigate(CreateWorkspaceRoute(project.id, project.name)) { popUpTo<ChooseProjectRoute> { inclusive = true } }
+                },
+                onBack = { navController.popBackStack() },
             )
         }
         composable<WorkspacesRoute> { entry ->
@@ -118,8 +143,8 @@ private fun NavHostController.openSettingsAsRoot(notice: String) {
     }
 }
 
-private fun NavHostController.openProjectsAsRoot() {
-    navigate(ProjectsRoute) { popUpTo(graph.id) { inclusive = true } }
+private fun NavHostController.openHomeAsRoot() {
+    navigate(HomeRoute) { popUpTo(graph.id) { inclusive = true } }
 }
 
 /** Returns an action that asks for the notification permission on Android 13 and later, if the app does not have it. */

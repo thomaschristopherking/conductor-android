@@ -12,6 +12,7 @@ import build.conductor.android.client.data.api.Me
 import build.conductor.android.client.data.api.Message
 import build.conductor.android.client.data.api.Page
 import build.conductor.android.client.data.api.Project
+import build.conductor.android.client.data.api.Section
 import build.conductor.android.client.data.api.SentMessage
 import build.conductor.android.client.data.api.Session
 import build.conductor.android.client.data.api.SessionStatus
@@ -40,6 +41,9 @@ class FakeConductorRepository : ConductorRepository {
     val workspaceRequests = mutableListOf<Pair<Int, Boolean>>()
     val archivedWorkspaceIds = mutableListOf<String>()
     var archiveFailure: ApiException? = null
+    var sectionsResult: () -> List<Section> = { emptyList() }
+    var allWorkspacesResult: (includeArchived: Boolean) -> List<Workspace> = { emptyList() }
+    val allWorkspacesRequests = mutableListOf<Boolean>()
     var favorites = listOf(FavoriteModel("codex", "gpt-6.1-sol", "high"))
     var sessionsInWorkspace = listOf<Session>()
     var sessionStatuses = mutableMapOf<String, String>()
@@ -76,6 +80,13 @@ class FakeConductorRepository : ConductorRepository {
         workspaceRequests += offset to includeArchived
         return workspacePages(offset, includeArchived)
     }
+
+    override suspend fun allWorkspaces(includeArchived: Boolean): List<Workspace> {
+        allWorkspacesRequests += includeArchived
+        return allWorkspacesResult(includeArchived)
+    }
+
+    override suspend fun sections(): List<Section> = sectionsResult()
 
     override suspend fun workspace(workspaceId: String) = workspace(workspaceId, "Workspace $workspaceId")
 

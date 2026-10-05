@@ -40,7 +40,9 @@ A project contains workspaces. A workspace contains sessions. A session contains
 | --- | --- |
 | `GET /me` | Test the API key on the settings screen. |
 | `GET /v0/projects` | Projects screen. |
+| `GET /v0/workspaces?includeArchived=…` | All workspaces, for the home screen. The app reads every page. |
 | `GET /v0/workspaces?repo={projectId}&includeArchived=…` | Workspaces of one project. See the discrepancy notes. |
+| `GET /v0/sections` | The user's sections, for the headers on the home screen. Each section has `id`, `name`, optional `emoji` and `workspaceIds`. The spec marks it experimental. |
 | `GET /v0/workspaces/{id}` | Workspace detail header. |
 | `POST /v0/workspaces` | Create a workspace and its first session. |
 | `POST /v0/workspaces/{id}/rename` | Rename a workspace. Body: `{"name": "..."}`. |
@@ -152,6 +154,7 @@ The link opens the Conductor desktop app. Android cannot open it, so the app off
 6. **The `/me` endpoint is outside `/v0`.**
 7. **The default page size is 5.** `GET /v0/projects` with no `limit` returns 5 of 9 projects and `hasMore: true`. One workspace has 89 sessions, so the app limits the status calls to 6 at a time.
 8. **Python's default user agent gets HTTP 403.** The edge network blocks the `Python-urllib` user agent. An `okhttp/5.5.0` user agent gets HTTP 200. The capture script sends a curl user agent.
+9. **`workspaceIds` of a section includes archived workspaces.** In one account, 30 of the 37 workspace ids in sections were archived. The app shows a section only when at least one of its workspaces is in the list. The live response also has no `emoji` key when a section has no emoji.
 
 ## Fixtures
 
