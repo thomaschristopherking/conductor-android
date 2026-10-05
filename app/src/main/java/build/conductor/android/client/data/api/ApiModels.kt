@@ -41,6 +41,15 @@ data class Workspace(
     val lastActivityAt: String? = null,
 )
 
+/** A user's own group of workspaces. [workspaceIds] can name archived workspaces. */
+@Serializable
+data class Section(
+    val id: String,
+    val name: String,
+    val workspaceIds: List<String>,
+    val emoji: String? = null,
+)
+
 @Serializable
 data class WorkspaceStatus(
     val workspaceId: String,

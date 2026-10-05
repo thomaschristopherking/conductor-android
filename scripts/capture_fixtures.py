@@ -119,6 +119,9 @@ def main():
     listed_workspaces = fetch("/v0/workspaces?limit=100")["data"] + fetch("/v0/workspaces?limit=100&state=archived")["data"]
     for index, listed_workspace in enumerate(listed_workspaces):
         scrubber.add(listed_workspace["name"], f"Example workspace {index + 1}")
+    sections = fetch("/v0/sections")
+    for index, section in enumerate(sections["data"]):
+        scrubber.add(section["name"], f"Example section {index + 1}")
     scrubber.add(os.environ.get("FIXTURE_GITHUB_OWNER", "thomaschristopherking"), "example-user")
     workspace = workspaces["data"][-1]
     sessions = fetch(f"/v0/workspaces/{workspace['id']}/sessions")
@@ -143,6 +146,7 @@ def main():
         "messages_after.json": fetch(f"/v0/sessions/{session['id']}/messages?after={first_page['data'][-1]['id']}&limit=5"),
         "messages_all_kinds.json": {"data": one_message_per_kind([s["id"] for s in all_sessions]), "offset": 0, "hasMore": False},
         "favorite_models.json": fetch("/v0/favorite-models"),
+        "sections.json": sections,
         "error_401.json": fetch("/v0/projects", key="invalid-key"),
         "error_404.json": fetch("/v0/sessions/00000000-0000-0000-0000-000000000000/status"),
         "error_400.json": fetch(f"/v0/sessions/{session['id']}/messages?after=x&offset=1"),

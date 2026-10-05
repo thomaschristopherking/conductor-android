@@ -77,6 +77,48 @@ class ConductorApiTest {
     }
 
     @Test
+    fun `sections fixture parses with workspace ids and no emoji`() = runTest {
+        enqueueFixture("sections.json")
+
+        val sections = repository.sections()
+
+        assertEquals((1..5).map { "Example section $it" }, sections.map { it.name })
+        assertEquals(8, sections.first().workspaceIds.size)
+        assertNull(sections.first().emoji)
+        assertEquals("/v0/sections", server.takeRequest().url.encodedPath)
+    }
+
+    @Test
+    fun `all workspaces send no repo and send includeArchived only when set`() = runTest {
+        enqueueFixture("workspaces.json")
+        enqueueJson(EMPTY_LAST_PAGE)
+        enqueueJson(EMPTY_LAST_PAGE)
+
+        val workspaces = repository.allWorkspaces(includeArchived = false)
+        repository.allWorkspaces(includeArchived = true)
+
+        assertTrue(workspaces.isNotEmpty())
+        val first = server.takeRequest().url
+        assertEquals("/v0/workspaces", first.encodedPath)
+        assertNull(first.queryParameter("repo"))
+        assertNull(first.queryParameter("includeArchived"))
+        server.takeRequest()
+        assertEquals("true", server.takeRequest().url.queryParameter("includeArchived"))
+    }
+
+    @Test
+    fun `all workspaces follow hasMore across pages`() = runTest {
+        enqueueJson("""{"data":[$WORKSPACE_JSON],"offset":0,"hasMore":true}""")
+        enqueueJson("""{"data":[${WORKSPACE_JSON.replace("w1", "w2")}],"offset":1,"hasMore":false}""")
+
+        val workspaces = repository.allWorkspaces(includeArchived = false)
+
+        assertEquals(listOf("w1", "w2"), workspaces.map { it.id })
+        server.takeRequest()
+        assertEquals("1", server.takeRequest().url.queryParameter("offset"))
+    }
+
+    @Test
     fun `workspace, project workspaces and workspace status fixtures parse`() = runTest {
         enqueueFixture("workspace.json")
         enqueueFixture("workspace_status.json")
@@ -196,6 +238,8 @@ class ConductorApiTest {
     private companion object {
         const val TEST_KEY = "test-key-not-real"
         const val EMPTY_LAST_PAGE = """{"data":[],"offset":5,"hasMore":false}"""
+        const val WORKSPACE_JSON =
+            """{"id":"w1","name":"One","state":"ready","repoUrl":"https://github.com/o/r","createdAt":"2026-10-01T00:00:00Z","deepLink":"conductor://x"}"""
     }
 }
 

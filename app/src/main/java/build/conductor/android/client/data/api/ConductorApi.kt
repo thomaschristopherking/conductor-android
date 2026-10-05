@@ -25,6 +25,12 @@ interface ConductorApi {
         @Query("offset") offset: Int = 0,
     ): Page<Workspace>
 
+    @GET("v0/sections")
+    suspend fun sections(
+        @Query("limit") limit: Int = PAGE_SIZE,
+        @Query("offset") offset: Int = 0,
+    ): Page<Section>
+
     @GET("v0/workspaces/{workspaceId}")
     suspend fun workspace(@Path("workspaceId") workspaceId: String): Workspace
 
