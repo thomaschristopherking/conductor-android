@@ -1,0 +1,8 @@
+{
+  "id": "6f34e759-d447-4c64-bded-c05cec236a03",
+  "deepLink": "conductor://workspace?id=c79f2b54-e462-42eb-8190-f9e877cbee3c&session=6f34e759-d447-4c64-bded-c05cec236a03",
+  "name": "Example session 5",
+  "model": "fable-5-1",
+  "resolvedModel": "claude-fable-5-1",
+  "effort": "high"
+}

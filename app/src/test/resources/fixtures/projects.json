@@ -1,0 +1,31 @@
+{
+  "data": [
+    {
+      "id": "0be583de-aa7d-4f8a-9ad4-6716bb253bc5",
+      "name": "example-project-1",
+      "gitRemote": "https://github.com/example-org/example-project-1"
+    },
+    {
+      "id": "0d2a7204-2360-49e7-9eea-709dab6f8a84",
+      "name": "example-project-2",
+      "gitRemote": "https://github.com/example-org/example-project-2"
+    },
+    {
+      "id": "3a39cd50-42a9-4ea5-879d-48f51f00c750",
+      "name": "example-project-3",
+      "gitRemote": "https://github.com/example-org/example-project-3"
+    },
+    {
+      "id": "63abc625-f2f8-4728-82a7-dbf411879430",
+      "name": "example-project-4",
+      "gitRemote": "https://github.com/example-org/example-project-4"
+    },
+    {
+      "id": "7423eae9-bc67-4a71-b512-44712e90149e",
+      "name": "example-project-5",
+      "gitRemote": "https://github.com/example-org/example-project-5"
+    }
+  ],
+  "offset": 0,
+  "hasMore": true
+}

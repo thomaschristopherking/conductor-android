@@ -1,0 +1,9 @@
+{
+  "userMessage": "Example text.",
+  "code": "INVALID_REQUEST",
+  "source": "network",
+  "details": {
+    "origin": "roundhouse"
+  },
+  "traceId": "9513f95798afe90ba8503119af83833e"
+}

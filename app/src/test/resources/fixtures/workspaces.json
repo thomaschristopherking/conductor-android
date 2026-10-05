@@ -1,0 +1,61 @@
+{
+  "data": [
+    {
+      "id": "be2495cf-460d-40af-b32b-d804f8a8425b",
+      "name": "Example workspace 1",
+      "state": "ready",
+      "repoUrl": "https://github.com/example-user/conductor-android",
+      "createdAt": "2026-10-05T06:37:17.307Z",
+      "deepLink": "conductor://workspace?id=be2495cf-460d-40af-b32b-d804f8a8425b",
+      "creatorId": "e24fafdb-687b-47e0-94dd-5e1a663d136c",
+      "creatorName": "Test User",
+      "lastActivityAt": "2026-10-05T06:42:14.731Z"
+    },
+    {
+      "id": "48745115-4470-4329-b64c-59c40d8f71f2",
+      "name": "Example workspace 2",
+      "state": "sleeping",
+      "repoUrl": "https://github.com/example-org/example-project-1",
+      "createdAt": "2026-09-30T10:27:17.934Z",
+      "deepLink": "conductor://workspace?id=48745115-4470-4329-b64c-59c40d8f71f2",
+      "creatorId": "e24fafdb-687b-47e0-94dd-5e1a663d136c",
+      "creatorName": "Test User",
+      "lastActivityAt": "2026-09-30T12:35:50.424Z"
+    },
+    {
+      "id": "8e0c0721-f3f5-4532-90f5-e6139198606d",
+      "name": "Example workspace 3",
+      "state": "sleeping",
+      "repoUrl": "https://github.com/example-user/claude-skills",
+      "createdAt": "2026-09-30T07:29:08.743Z",
+      "deepLink": "conductor://workspace?id=8e0c0721-f3f5-4532-90f5-e6139198606d",
+      "creatorId": "e24fafdb-687b-47e0-94dd-5e1a663d136c",
+      "creatorName": "Test User",
+      "lastActivityAt": "2026-09-30T07:30:47.847Z"
+    },
+    {
+      "id": "d8a98165-dce9-4464-ae2e-dc16ca021b66",
+      "name": "Example workspace 4",
+      "state": "sleeping",
+      "repoUrl": "https://github.com/example-org/example-repo",
+      "createdAt": "2026-09-28T08:58:26.404Z",
+      "deepLink": "conductor://workspace?id=d8a98165-dce9-4464-ae2e-dc16ca021b66",
+      "creatorId": "e24fafdb-687b-47e0-94dd-5e1a663d136c",
+      "creatorName": "Test User",
+      "lastActivityAt": "2026-09-28T09:44:31.174Z"
+    },
+    {
+      "id": "c79f2b54-e462-42eb-8190-f9e877cbee3c",
+      "name": "Example workspace 5",
+      "state": "ready",
+      "repoUrl": "https://github.com/example-org/example-project-1",
+      "createdAt": "2026-09-27T19:51:02.275Z",
+      "deepLink": "conductor://workspace?id=c79f2b54-e462-42eb-8190-f9e877cbee3c",
+      "creatorId": "e24fafdb-687b-47e0-94dd-5e1a663d136c",
+      "creatorName": "Test User",
+      "lastActivityAt": "2026-10-05T06:03:39.720Z"
+    }
+  ],
+  "offset": 0,
+  "hasMore": true
+}
