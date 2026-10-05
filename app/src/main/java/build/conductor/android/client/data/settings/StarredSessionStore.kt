@@ -28,6 +28,8 @@ class StarredSessionStore(private val dataStore: DataStore<Preferences>) : Starr
 
     override suspend fun unstar(sessionId: String) = edit { sessions -> sessions - sessionId }
 
+    override suspend fun recordStatus(sessionId: String, status: String) = recordStatuses(mapOf(sessionId to status))
+
     suspend fun recordStatuses(statuses: Map<String, String>) = edit { sessions ->
         sessions.mapValues { (id, session) -> statuses[id]?.let { session.copy(lastStatus = it) } ?: session }
     }

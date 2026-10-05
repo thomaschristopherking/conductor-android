@@ -64,7 +64,10 @@ class SessionViewModel(
     val eventFlow: Flow<SessionEvent> = events.receiveAsFlow()
 
     private val transcript = TranscriptBuffer()
-    private val pendingPrompts = mutableListOf<TranscriptItem.UserPrompt>()
+    private val pendingPrompts = mutableListOf<PendingPrompt>()
+
+    /** The text and id of a prompt whose send failed; a resend of the same text reuses the id, so the server can drop a duplicate. */
+    private var unsentPrompt: Pair<String, String>? = null
     private val pollMutex = Mutex()
     private val backoff = PollBackoff()
     private var pollJob: Job? = null
@@ -129,8 +132,9 @@ class SessionViewModel(
     fun send() {
         val text = state.value.draft.trim()
         if (text.isEmpty() || state.value.isSending) return
-        val messageId = newMessageId()
-        pendingPrompts += TranscriptItem.UserPrompt("pending-$messageId", text, Delivery.SENDING, messageId)
+        val messageId = unsentPrompt?.takeIf { it.first == text }?.second ?: newMessageId()
+        val prompt = TranscriptItem.UserPrompt("pending-$messageId", text, Delivery.SENDING, messageId)
+        pendingPrompts += PendingPrompt(prompt, transcript.items.size)
         state.update { it.copy(draft = "", isSending = true) }
         publishItems()
         viewModelScope.launch { deliver(text, messageId) }
@@ -139,12 +143,15 @@ class SessionViewModel(
     private suspend fun deliver(text: String, messageId: String) {
         try {
             val sent = repository.sendMessage(sessionId, text, messageId)
+            unsentPrompt = null
             markPending(messageId, if (sent.state == "queued") Delivery.QUEUED else Delivery.SENT)
             deliveryGracePolls = DELIVERY_GRACE_POLLS
+            recordStatusForStar(AgentStatus.WORKING)
             backoff.onNewMessages()
             startPollingIfNeeded()
         } catch (exception: ApiException) {
-            pendingPrompts.removeAll { it.clientMessageId == messageId }
+            unsentPrompt = text to messageId
+            pendingPrompts.removeAll { it.prompt.clientMessageId == messageId }
             state.update { it.copy(draft = it.draft.ifEmpty { text }) }
             events.send(SessionEvent.ShowMessage(exception.message ?: "The message was not sent."))
         }
@@ -158,7 +165,10 @@ class SessionViewModel(
         viewModelScope.launch {
             try {
                 val result = repository.cancelSession(sessionId)
+                if (result.canceledQueuedMessages > 0) pendingPrompts.removeAll { it.prompt.delivery == Delivery.QUEUED }
+                deliveryGracePolls = 0
                 state.update { it.copy(status = AgentStatus.from(result.status)) }
+                publishItems()
                 startPollingIfNeeded()
             } catch (exception: ApiException) {
                 events.send(SessionEvent.ShowMessage(exception.message ?: "The agent did not stop."))
@@ -210,14 +220,12 @@ class SessionViewModel(
         }
     }
 
-    /** Returns true when new messages arrived. */
+    /** Returns true when new messages arrived. The status comes first, so messages written before an idle status are never missed. */
     private suspend fun pollOnce(): Boolean = pollMutex.withLock {
-        coroutineScope {
-            val status = async { repository.sessionStatus(sessionId) }
-            val newItems = fetchNewItems()
-            applyStatus(status.await(), newItems)
-            newItems.isNotEmpty()
-        }
+        val status = repository.sessionStatus(sessionId)
+        val newItems = fetchNewItems()
+        applyStatus(status, newItems)
+        newItems.isNotEmpty()
     }
 
     private suspend fun fetchNewItems(): List<TranscriptItem> {
@@ -231,23 +239,36 @@ class SessionViewModel(
 
     private fun applyStatus(status: SessionStatus, newItems: List<TranscriptItem>) {
         val agentStatus = AgentStatus.from(status.status)
-        if (agentStatus == AgentStatus.WORKING || newItems.any { it is TranscriptItem.TurnEnd }) {
-            deliveryGracePolls = 0
-        } else if (deliveryGracePolls > 0) {
-            deliveryGracePolls--
-        }
         pendingPrompts.removeAll { pending -> transcript.containsPrompt(pending) }
+        updateDeliveryGrace(agentStatus, newItems)
+        if (agentStatus != state.value.status) recordStatusForStar(agentStatus)
         state.update { it.copy(status = agentStatus, statusError = status.errorMessage ?: status.lastError) }
         publishItems()
     }
 
+    /** A prompt that waits for delivery keeps the grace polls; the end of an earlier turn does not mean that it was delivered. */
+    private fun updateDeliveryGrace(agentStatus: AgentStatus, newItems: List<TranscriptItem>) {
+        val isAwaitingDelivery = pendingPrompts.any { it.prompt.delivery != Delivery.SENDING }
+        val isTurnSettled = agentStatus == AgentStatus.WORKING || newItems.any { it is TranscriptItem.TurnEnd }
+        deliveryGracePolls = when {
+            !isAwaitingDelivery && isTurnSettled -> 0
+            agentStatus == AgentStatus.WORKING -> deliveryGracePolls
+            else -> (deliveryGracePolls - 1).coerceAtLeast(0)
+        }
+    }
+
+    private fun recordStatusForStar(agentStatus: AgentStatus) {
+        val apiValue = agentStatus.apiValue ?: return
+        if (state.value.isStarred) viewModelScope.launch { starredSessions.recordStatus(sessionId, apiValue) }
+    }
+
     private fun markPending(messageId: String, delivery: Delivery) {
-        val index = pendingPrompts.indexOfFirst { it.clientMessageId == messageId }
-        if (index >= 0) pendingPrompts[index] = pendingPrompts[index].copy(delivery = delivery)
+        val index = pendingPrompts.indexOfFirst { it.prompt.clientMessageId == messageId }
+        if (index >= 0) pendingPrompts[index] = pendingPrompts[index].let { it.copy(prompt = it.prompt.copy(delivery = delivery)) }
     }
 
     private fun publishItems() {
-        state.update { it.copy(items = transcript.items + pendingPrompts) }
+        state.update { it.copy(items = transcript.items + pendingPrompts.map { it.prompt }) }
     }
 
     private companion object {
@@ -271,7 +292,11 @@ private class TranscriptBuffer {
         return added
     }
 
-    fun containsPrompt(pending: TranscriptItem.UserPrompt): Boolean = items.any {
-        it is TranscriptItem.UserPrompt && (it.clientMessageId == pending.clientMessageId || it.text == pending.text)
-    }
+    /** Matches on the client id, or on the text of a prompt that arrived after the send, so an older prompt with the same text does not match. */
+    fun containsPrompt(pending: PendingPrompt): Boolean =
+        items.any { it is TranscriptItem.UserPrompt && it.clientMessageId == pending.prompt.clientMessageId } ||
+            items.drop(pending.transcriptSizeAtSend).any { it is TranscriptItem.UserPrompt && it.text == pending.prompt.text }
 }
+
+/** A prompt that the transcript does not show yet. [transcriptSizeAtSend] is the transcript length when the user sent it. */
+private data class PendingPrompt(val prompt: TranscriptItem.UserPrompt, val transcriptSizeAtSend: Int)

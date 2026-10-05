@@ -31,6 +31,8 @@ class FakeConductorRepository : ConductorRepository {
     val createdWorkspaces = mutableListOf<CreateWorkspaceRequest>()
     val createdSessions = mutableListOf<CreateSessionRequest>()
     var cancelCount = 0
+    var canceledQueuedMessages = 0
+    val callOrder = mutableListOf<String>()
     var messagesFailure: ApiException? = null
     var sendFailure: ApiException? = null
     var projectsResult: () -> List<Project> = { emptyList() }
@@ -83,10 +85,11 @@ class FakeConductorRepository : ConductorRepository {
     override suspend fun session(sessionId: String) = Session(id = sessionId, deepLink = "conductor://workspace?id=w1&session=$sessionId", name = "Fix CI")
 
     override suspend fun sessionStatus(sessionId: String): SessionStatus =
-        SessionStatus("w1", sessionId, sessionStatuses[sessionId] ?: sessionStatusValue, "2026-10-05T06:00:00Z")
+        callOrder.add("status").let { _ -> SessionStatus("w1", sessionId, sessionStatuses[sessionId] ?: sessionStatusValue, "2026-10-05T06:00:00Z") }
 
     override suspend fun messagesAfter(sessionId: String, afterMessageId: String?): Page<Message> {
         messageCursors += afterMessageId
+        callOrder += "messages"
         messagesFailure?.let { throw it }
         val start = afterMessageId?.let { id -> transcript.indexOfFirst { it.id == id } + 1 } ?: 0
         val page = transcript.drop(start).take(PAGE_SIZE)
@@ -101,7 +104,7 @@ class FakeConductorRepository : ConductorRepository {
 
     override suspend fun cancelSession(sessionId: String): CancelledSession {
         cancelCount++
-        return CancelledSession("w1", sessionId, "working", 0)
+        return CancelledSession("w1", sessionId, "working", canceledQueuedMessages)
     }
 
     override suspend fun favoriteModels(): List<FavoriteModel> = favorites

@@ -71,6 +71,8 @@ A project contains workspaces. A workspace contains sessions. A session contains
 4. Do not combine `after` with `offset`. The live API answers 400: `Cannot combine \`after\` with \`offset\`; use one or the other.`
 5. Poll the status endpoint at the same time. Stop when the status is `idle` or `error`.
 
+A prompt appears in the transcript only after delivery. In 14 live sessions, all 87 `userMessage` events had `state: "sent"`, and each `content.id` appeared once. So the app shows its own "Queued" bubble until the delivered prompt arrives.
+
 `sessionIndex` values can have gaps. For example, a live session has indexes 1, 3, 4, with no 2.
 
 ## Message content

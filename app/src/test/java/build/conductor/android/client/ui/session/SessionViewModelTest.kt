@@ -237,6 +237,9 @@ class SessionViewModelTest {
             override suspend fun unstar(sessionId: String) {
                 starredIds.value = emptySet()
             }
+            override suspend fun recordStatus(sessionId: String, status: String) {
+                starredStatus = status
+            }
         }
         val viewModel = SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", starred)
         runCurrent()
@@ -250,6 +253,85 @@ class SessionViewModelTest {
         viewModel.toggleStar()
         runCurrent()
         assertFalse(viewModel.uiState.value.isStarred)
+    }
+
+    @Test
+    fun `each poll reads the status before the messages`() = runTest {
+        repository.sessionStatusValue = "working"
+        val viewModel = openSession()
+        advanceTimeBy(3_001)
+
+        assertEquals(listOf("status", "messages", "status", "messages"), repository.callOrder)
+        viewModel.onHidden()
+    }
+
+    @Test
+    fun `a prompt queued during a turn keeps polling after that turn ends`() = runTest {
+        repository.sessionStatusValue = "working"
+        val viewModel = openSession()
+        viewModel.onDraftChange("Also run lint")
+        viewModel.send()
+        runCurrent()
+
+        repository.addTurnEnd()
+        repository.sessionStatusValue = "idle"
+        advanceTimeBy(3_001)
+
+        assertTrue(viewModel.uiState.value.isPolling)
+        assertEquals(Delivery.QUEUED, (viewModel.uiState.value.items.last() as TranscriptItem.UserPrompt).delivery)
+        repository.addUserMessage("Also run lint", CLIENT_ID)
+        repository.sessionStatusValue = "working"
+        advanceTimeBy(3_001)
+        assertEquals(1, viewModel.uiState.value.items.count { it is TranscriptItem.UserPrompt })
+        viewModel.onHidden()
+    }
+
+    @Test
+    fun `an older prompt with the same text does not hide a new pending prompt`() = runTest {
+        repository.addUserMessage("continue", "old")
+        repository.sessionStatusValue = "working"
+        val viewModel = openSession()
+        viewModel.onDraftChange("continue")
+
+        viewModel.send()
+        runCurrent()
+        advanceTimeBy(3_001)
+
+        assertEquals(2, viewModel.uiState.value.items.count { it is TranscriptItem.UserPrompt })
+        viewModel.onHidden()
+    }
+
+    @Test
+    fun `cancel removes prompts that the server dropped from the queue`() = runTest {
+        repository.sessionStatusValue = "working"
+        repository.canceledQueuedMessages = 1
+        val viewModel = openSession()
+        viewModel.onDraftChange("Later")
+        viewModel.send()
+        runCurrent()
+
+        viewModel.cancel()
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.items.none { it is TranscriptItem.UserPrompt })
+        viewModel.onHidden()
+    }
+
+    @Test
+    fun `a resend of a failed prompt reuses its message id`() = runTest {
+        var counter = 0
+        val viewModel = SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", newMessageId = { "id-${counter++}" })
+        runCurrent()
+        repository.sendFailure = ApiException.Offline(IOException("timeout"))
+        viewModel.onDraftChange("Run the tests")
+        viewModel.send()
+        runCurrent()
+
+        repository.sendFailure = null
+        viewModel.send()
+        runCurrent()
+
+        assertEquals(listOf("Run the tests" to "id-0"), repository.sentMessages)
     }
 
     private companion object {

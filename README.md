@@ -105,5 +105,5 @@ I made these decisions without a person to ask.
 - **Long transcripts.** The session screen loads the full transcript when it opens, 100 messages for each request.
 - **No offline cache.** Each screen loads from the network.
 - **Debug build only.** The APK is signed with the debug key.
-- **Background checks.** Android runs periodic work at most every 15 minutes, and it can delay the work to save battery.
+- **Background checks.** Android runs periodic work at most every 15 minutes, and it can delay the work to save battery. The session screen records each status that it sees, so a short turn that you start from the app is caught. A turn that starts and ends between two checks while the app is closed is not caught.
 - **Code blocks.** Code blocks have no syntax colours.

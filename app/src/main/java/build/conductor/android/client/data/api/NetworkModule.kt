@@ -9,6 +9,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Response
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 val conductorJson = Json {
@@ -35,6 +36,8 @@ private fun createHttpClient(apiKey: () -> String?, retryDelay: (Long) -> Unit):
     OkHttpClient.Builder()
         .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        // OkHttp would otherwise resend a POST after some connection failures, and creating a workspace is not idempotent.
+        .retryOnConnectionFailure(false)
         .addInterceptor(AuthInterceptor(apiKey))
         .addInterceptor(RetryInterceptor(retryDelay))
         .build()
@@ -53,23 +56,34 @@ class AuthInterceptor(private val apiKey: () -> String?) : Interceptor {
 
 fun bearer(apiKey: String): String = "Bearer ${apiKey.trim()}"
 
-/** Retries a GET request after HTTP 429, 502, 503 or 504. Other methods are not idempotent, so they are never retried. */
+/**
+ * Retries a GET request after a connection failure or HTTP 429, 502, 503 or 504.
+ * Other methods are not idempotent, so they are never retried.
+ */
 class RetryInterceptor(
     private val delay: (Long) -> Unit,
     private val maxRetries: Int = MAX_RETRIES,
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        var response = chain.proceed(request)
+        if (request.method != "GET") return chain.proceed(request)
         var attempt = 0
-        while (request.method == "GET" && response.code in RETRYABLE_CODES && attempt < maxRetries) {
-            val waitMillis = retryAfterMillis(response) ?: (BASE_RETRY_MILLIS shl attempt)
-            response.close()
+        while (true) {
+            val response = proceedOrNull(chain, isLastAttempt = attempt >= maxRetries)
+            if (response != null && (response.code !in RETRYABLE_CODES || attempt >= maxRetries)) return response
+            val waitMillis = response?.let(::retryAfterMillis) ?: (BASE_RETRY_MILLIS shl attempt)
+            response?.close()
             delay(waitMillis.coerceAtMost(MAX_RETRY_MILLIS))
             attempt++
-            response = chain.proceed(request)
         }
-        return response
+    }
+
+    /** Returns null after a connection failure that can be retried. */
+    private fun proceedOrNull(chain: Interceptor.Chain, isLastAttempt: Boolean): Response? = try {
+        chain.proceed(chain.request())
+    } catch (exception: IOException) {
+        if (isLastAttempt || chain.call().isCanceled()) throw exception
+        null
     }
 
     private fun retryAfterMillis(response: Response): Long? =

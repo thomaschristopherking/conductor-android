@@ -53,7 +53,7 @@ class WorkspacesViewModel(
 
     fun loadMore() {
         val loaded = (state.value.workspaces as? LoadState.Loaded)?.value ?: return
-        if (!state.value.hasMore || state.value.isLoadingMore) return
+        if (!state.value.hasMore || state.value.isLoadingMore || state.value.isRefreshing) return
         state.update { it.copy(isLoadingMore = true, loadMoreError = null) }
         loadJob = viewModelScope.launch { fetchPage(offset = loaded.size, previous = loaded) }
     }

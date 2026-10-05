@@ -7,8 +7,10 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 
 class RetryInterceptorTest {
     private val server = MockWebServer()
@@ -40,6 +42,23 @@ class RetryInterceptorTest {
         client.newCall(Request.Builder().url(server.url("/")).build()).execute()
 
         assertEquals(listOf(4_000L), waits)
+    }
+
+    @Test
+    fun `a GET is retried after a connection failure, and a POST is not`() {
+        var failures = 0
+        val flakyClient = OkHttpClient.Builder()
+            .addInterceptor(RetryInterceptor(delay = { waits += it }))
+            .addInterceptor { chain -> if (failures++ == 0) throw IOException("connection reset") else chain.proceed(chain.request()) }
+            .build()
+        server.enqueue(MockResponse.Builder().code(200).build())
+
+        val response = flakyClient.newCall(Request.Builder().url(server.url("/")).build()).execute()
+        failures = 0
+        val postFailure = runCatching { flakyClient.newCall(Request.Builder().url(server.url("/")).post("{}".toRequestBody()).build()).execute() }
+
+        assertEquals(200, response.code)
+        assertTrue(postFailure.exceptionOrNull() is IOException)
     }
 
     @Test
