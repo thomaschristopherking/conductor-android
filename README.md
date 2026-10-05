@@ -1,5 +1,7 @@
 # Conductor for Android
 
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 A native Android client for [Conductor Cloud](https://conductor.build). Use it to watch and steer your cloud coding agents from a phone.
 
 > **Verification status.** The build machine had no emulator and no device. I verified the app with `./gradlew lint testDebugUnitTest assembleDebug` only. Nobody has opened the app on a real device yet. See [Known limitations](#known-limitations).
@@ -107,3 +109,14 @@ I made these decisions without a person to ask.
 - **Debug build only.** The APK is signed with the debug key.
 - **Background checks.** Android runs periodic work at most every 15 minutes, and it can delay the work to save battery. The session screen records each status that it sees, so a short turn that you start from the app is caught. A turn that starts and ends between two checks while the app is closed is not caught.
 - **Code blocks.** Code blocks have no syntax colours.
+
+## Contributing
+
+[`CONTRIBUTING.md`](CONTRIBUTING.md) tells you how to set up the project and what a pull request needs. Each commit must have a [Developer Certificate of Origin](DCO) sign-off (`git commit -s`). You do not sign a contributor agreement.
+
+- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md): the Contributor Covenant, and how to report a problem.
+- [`SECURITY.md`](SECURITY.md): how to report a vulnerability privately.
+
+## License
+
+Apache License 2.0. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
