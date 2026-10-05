@@ -1,0 +1,22 @@
+{
+  "favoriteModels": [
+    {
+      "agent": "claude",
+      "model": "opus-5-5-1m",
+      "effort": "high",
+      "fastMode": false
+    },
+    {
+      "agent": "codex",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "fastMode": false
+    },
+    {
+      "agent": "claude",
+      "model": "fable-5-1",
+      "effort": "high",
+      "fastMode": false
+    }
+  ]
+}

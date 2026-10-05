@@ -1,0 +1,10 @@
+{
+  "userId": "e24fafdb-687b-47e0-94dd-5e1a663d136c",
+  "authMethod": "api-key",
+  "name": "Test User",
+  "email": "user@example.com",
+  "organizationId": "22e0f3d5-bd80-4b7c-b7b7-9a970bd4b978",
+  "apiKey": {
+    "id": "api_key_EXAMPLE"
+  }
+}

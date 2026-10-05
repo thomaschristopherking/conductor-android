@@ -1,0 +1,236 @@
+{
+  "data": [
+    {
+      "id": "692bde55-9749-4cbd-abec-ed5d5031e0c8",
+      "sessionId": "6f34e759-d447-4c64-bded-c05cec236a03",
+      "sessionIndex": 14,
+      "type": "agent",
+      "content": {
+        "eventId": "692bde55-9749-4cbd-abec-ed5d5031e0c8",
+        "type": "agent",
+        "rawPayload": {
+          "duration_api_ms": 4209,
+          "stop_reason": "end_turn",
+          "session_id": "6f34e759-d447-4c64-bded-c05cec236a03",
+          "total_cost_usd": 0.2399625,
+          "usage": {
+            "input_tokens": 4,
+            "cache_creation_input_tokens": 21218,
+            "cache_read_input_tokens": 42689,
+            "output_tokens": 188,
+            "output_tokens_details": {
+              "thinking_tokens": 0
+            },
+            "server_tool_use": {
+              "web_search_requests": 0,
+              "web_fetch_requests": 0
+            },
+            "service_tier": "standard",
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 21218,
+              "ephemeral_5m_input_tokens": 0
+            },
+            "inference_geo": "not_available",
+            "iterations": [
+              {
+                "input_tokens": 2,
+                "output_tokens": 27,
+                "cache_read_input_tokens": 31849,
+                "cache_creation_input_tokens": 209,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 0,
+                  "ephemeral_1h_input_tokens": 209
+                },
+                "type": "message"
+              }
+            ],
+            "speed": "standard"
+          },
+          "modelUsage": {
+            "claude-haiku-4-5-20251001": {
+              "inputTokens": 1668,
+              "outputTokens": 10,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0,
+              "webSearchRequests": 0,
+              "costUSD": 0.001718,
+              "contextWindow": 200000,
+              "maxOutputTokens": 32000,
+              "thinkingTokens": 0,
+              "canonicalModel": "claude-haiku-4-5",
+              "provider": "firstParty",
+              "costBasis": "list"
+            },
+            "claude-opus-5[1m]": {
+              "inputTokens": 4,
+              "outputTokens": 188,
+              "cacheReadInputTokens": 42689,
+              "cacheCreationInputTokens": 21218,
+              "webSearchRequests": 0,
+              "costUSD": 0.2382445,
+              "contextWindow": 1000000,
+              "maxOutputTokens": 64000,
+              "thinkingTokens": 0,
+              "canonicalModel": "claude-opus-5",
+              "provider": "firstParty",
+              "costBasis": "list"
+            }
+          },
+          "permission_denials": [],
+          "terminal_reason": "completed",
+          "fast_mode_state": "off",
+          "fast_mode_disabled_reason": "sdk_opt_in_required",
+          "subagent_stats": {
+            "spawned": 0,
+            "requested": {
+              "background": 0,
+              "foreground": 0,
+              "unset": 0
+            },
+            "started_in_background": 0,
+            "max_depth": 0,
+            "spawned_by_subagents": 0,
+            "completed": 0,
+            "failed": 0,
+            "killed": {
+              "parent": 0,
+              "user": 0,
+              "system": 0
+            },
+            "refused": {
+              "depth_limit": 0,
+              "concurrency_limit": 0,
+              "budget": 0
+            },
+            "by_type": {}
+          },
+          "is_error": false,
+          "num_turns": 2,
+          "subtype": "success",
+          "api_error_status": null,
+          "result": "Example text.",
+          "ttft_ms": 2468,
+          "type": "result",
+          "duration_ms": 3722,
+          "uuid": "68752f84-ba16-4266-b509-3e4db4d1c63f",
+          "ttft_stream_ms": 1122,
+          "time_to_request_ms": 70,
+          "first_content_frame_ms": 1122,
+          "user_message_uuid": "7b64b65c-b818-4b7e-8f0a-9350300bf85d",
+          "user_message_uuids": [
+            "7b64b65c-b818-4b7e-8f0a-9350300bf85d"
+          ],
+          "request_sent_wall_ms": 1790689176021,
+          "queued_turn_count": 0,
+          "result_index": 0,
+          "conductor_sdk_metadata": {
+            "requestedModel": "opus-5-1m",
+            "requestedReasoningEffort": "high",
+            "requestedFastMode": false,
+            "requestedThinkingLevel": "high",
+            "model": "claude-opus-5[1m]",
+            "serviceTier": "standard",
+            "speed": "standard",
+            "isForeignResult": false,
+            "marginalCostUsd": 0.2399625
+          }
+        },
+        "userMessageId": "8a6e1364-f7a8-4de1-bd11-a639a1be04b0",
+        "turnId": "8a6e1364-f7a8-4de1-bd11-a639a1be04b0"
+      },
+      "receivedAt": "2026-09-29T13:39:39.694Z"
+    },
+    {
+      "id": "d74d3567-c8d0-4c15-bcc6-4aa5ccfcf89d",
+      "sessionId": "6f34e759-d447-4c64-bded-c05cec236a03",
+      "sessionIndex": 15,
+      "type": "agent",
+      "content": {
+        "eventId": "d74d3567-c8d0-4c15-bcc6-4aa5ccfcf89d",
+        "type": "agent",
+        "rawPayload": {
+          "type": "command_lifecycle",
+          "command_uuid": "7b64b65c-b818-4b7e-8f0a-9350300bf85d",
+          "state": "completed",
+          "uuid": "f62469d9-8fe0-47b9-af5b-bf0e05721cf6",
+          "session_id": "6f34e759-d447-4c64-bded-c05cec236a03"
+        },
+        "userMessageId": "8a6e1364-f7a8-4de1-bd11-a639a1be04b0",
+        "turnId": "8a6e1364-f7a8-4de1-bd11-a639a1be04b0"
+      },
+      "receivedAt": "2026-09-29T13:39:39.694Z"
+    },
+    {
+      "id": "d9c90366-334a-4111-93e2-88cd5c0d9f19",
+      "sessionId": "6f34e759-d447-4c64-bded-c05cec236a03",
+      "sessionIndex": 16,
+      "type": "agent",
+      "content": {
+        "eventId": "d9c90366-334a-4111-93e2-88cd5c0d9f19",
+        "type": "agent",
+        "rawPayload": {
+          "type": "system",
+          "subtype": "session_state_changed",
+          "state": "idle",
+          "uuid": "0014a320-080d-44de-b36e-67639f64afd1",
+          "session_id": "6f34e759-d447-4c64-bded-c05cec236a03"
+        },
+        "userMessageId": "8a6e1364-f7a8-4de1-bd11-a639a1be04b0",
+        "turnId": "8a6e1364-f7a8-4de1-bd11-a639a1be04b0"
+      },
+      "receivedAt": "2026-09-29T13:39:39.694Z"
+    },
+    {
+      "id": "9a89fbd0-cf86-444d-a6ba-55f2061538d4",
+      "sessionId": "6f34e759-d447-4c64-bded-c05cec236a03",
+      "sessionIndex": 18,
+      "type": "userMessage",
+      "content": {
+        "eventId": "9a89fbd0-cf86-444d-a6ba-55f2061538d4",
+        "type": "userMessage",
+        "deliveryAttemptId": "356cca4c-ca9c-45fa-91e1-9a3a58339d98",
+        "senderId": "f77a4e05-7ebe-49c8-9895-7da7fd6c6995",
+        "id": "356cca4c-ca9c-45fa-91e1-9a3a58339d98",
+        "message": "Example text.",
+        "state": "sent",
+        "turnId": "356cca4c-ca9c-45fa-91e1-9a3a58339d98",
+        "resume": "6f34e759-d447-4c64-bded-c05cec236a03",
+        "config": {
+          "collaborationMode": "default",
+          "model": "opus-5-1m",
+          "harness": "claude",
+          "claudePersonality": "default",
+          "thinkingLevel": "high",
+          "fastMode": false,
+          "chromeEnabled": true,
+          "localExecutionMcpEnabled": false,
+          "getDiffCommentsEnabled": true,
+          "workspaceSettingsRevision": "Example text."
+        }
+      },
+      "receivedAt": "2026-09-29T13:42:08.813Z"
+    },
+    {
+      "id": "c3076618-3bfc-486f-9dda-fdd7dc304c2f",
+      "sessionId": "6f34e759-d447-4c64-bded-c05cec236a03",
+      "sessionIndex": 19,
+      "type": "agent",
+      "content": {
+        "eventId": "c3076618-3bfc-486f-9dda-fdd7dc304c2f",
+        "type": "agent",
+        "rawPayload": {
+          "type": "system",
+          "subtype": "session_state_changed",
+          "state": "running",
+          "uuid": "c902428f-1121-410c-911f-384cd8f70b4d",
+          "session_id": "6f34e759-d447-4c64-bded-c05cec236a03"
+        },
+        "userMessageId": "356cca4c-ca9c-45fa-91e1-9a3a58339d98",
+        "turnId": "356cca4c-ca9c-45fa-91e1-9a3a58339d98"
+      },
+      "receivedAt": "2026-09-29T13:42:09.171Z"
+    }
+  ],
+  "offset": 0,
+  "hasMore": true
+}

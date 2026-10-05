@@ -1,0 +1,12 @@
+{
+  "id": "c79f2b54-e462-42eb-8190-f9e877cbee3c",
+  "name": "Example workspace 5",
+  "state": "ready",
+  "repoUrl": "https://github.com/example-org/example-project-1",
+  "createdAt": "2026-09-27T19:51:02.275Z",
+  "deepLink": "conductor://workspace?id=c79f2b54-e462-42eb-8190-f9e877cbee3c",
+  "projectId": "0be583de-aa7d-4f8a-9ad4-6716bb253bc5",
+  "creatorId": "e24fafdb-687b-47e0-94dd-5e1a663d136c",
+  "creatorName": "Test User",
+  "lastActivityAt": "2026-10-05T06:03:39.720Z"
+}

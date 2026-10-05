@@ -1,0 +1,43 @@
+{
+  "data": [
+    {
+      "id": "6f34e759-d447-4c64-bded-c05cec236a03",
+      "deepLink": "conductor://workspace?id=c79f2b54-e462-42eb-8190-f9e877cbee3c&session=6f34e759-d447-4c64-bded-c05cec236a03",
+      "name": "Example session 5",
+      "model": "fable-5-1",
+      "resolvedModel": "claude-fable-5-1",
+      "effort": "high"
+    },
+    {
+      "id": "768ca2df-dffd-4982-a878-66f666e45810",
+      "deepLink": "conductor://workspace?id=c79f2b54-e462-42eb-8190-f9e877cbee3c&session=768ca2df-dffd-4982-a878-66f666e45810",
+      "name": "Example session 6",
+      "model": "sonnet-5-1m",
+      "resolvedModel": "claude-sonnet-5[1m]",
+      "effort": "medium"
+    },
+    {
+      "id": "6a3c5cd4-ba00-4e70-878a-26bd9d6346de",
+      "deepLink": "conductor://workspace?id=c79f2b54-e462-42eb-8190-f9e877cbee3c&session=6a3c5cd4-ba00-4e70-878a-26bd9d6346de",
+      "name": "Example session 7",
+      "model": "fable-5",
+      "resolvedModel": "claude-fable-5",
+      "effort": "high"
+    },
+    {
+      "id": "4539dfea-10fd-436e-adfe-694bb3809658",
+      "deepLink": "conductor://workspace?id=c79f2b54-e462-42eb-8190-f9e877cbee3c&session=4539dfea-10fd-436e-adfe-694bb3809658",
+      "name": "Example session 8",
+      "model": "sonnet-5-1m",
+      "resolvedModel": "claude-sonnet-5[1m]",
+      "effort": "medium"
+    },
+    {
+      "id": "d1dc8d69-eb5b-47b7-a490-6d04833d8db9",
+      "deepLink": "conductor://workspace?id=c79f2b54-e462-42eb-8190-f9e877cbee3c&session=d1dc8d69-eb5b-47b7-a490-6d04833d8db9",
+      "name": "Example session 9"
+    }
+  ],
+  "offset": 0,
+  "hasMore": true
+}

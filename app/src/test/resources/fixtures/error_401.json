@@ -1,0 +1,5 @@
+{
+  "userMessage": "Unauthorized client request",
+  "code": "UNAUTHORIZED",
+  "source": "network"
+}
