@@ -8,6 +8,8 @@ import build.conductor.android.client.data.ConductorRepository
 import build.conductor.android.client.data.api.createConductorApi
 import build.conductor.android.client.data.settings.AesGcmCipher
 import build.conductor.android.client.data.settings.ApiKeyStore
+import build.conductor.android.client.data.settings.AppearanceStore
+import build.conductor.android.client.data.settings.ColorSchemeChoice
 import build.conductor.android.client.data.settings.StarredSessionStore
 import build.conductor.android.client.data.settings.androidKeystoreKey
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +31,12 @@ class AppContainer(context: Context) {
     val apiKeyState: StateFlow<ApiKeyState> = apiKeyStore.apiKey
         .map { key -> if (key.isNullOrBlank()) ApiKeyState.Missing else ApiKeyState.Present(key) }
         .stateIn(applicationScope, SharingStarted.Eagerly, ApiKeyState.Loading)
+
+    val appearanceStore = AppearanceStore(settingsDataStore)
+
+    /** Null until DataStore reads the saved choice, so the first frame does not show the wrong colours. */
+    val colorScheme: StateFlow<ColorSchemeChoice?> = appearanceStore.colorScheme
+        .stateIn(applicationScope, SharingStarted.Eagerly, null)
 
     val starredSessionStore = StarredSessionStore(
         PreferenceDataStoreFactory.create { context.preferencesDataStoreFile(STARRED_SESSIONS_FILE) },

@@ -1,6 +1,8 @@
 package build.conductor.android.client.data.settings
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -62,6 +64,19 @@ class SettingsStorageTest {
         assertEquals(setOf("s1"), store.starredIds.first())
         store.unstar("s1")
         assertTrue(store.snapshot().isEmpty())
+    }
+
+    @Test
+    fun `the colour scheme is saved and read back, and an unknown value reads as the default`() = runTest {
+        val dataStore = newDataStore("appearance")
+        val store = AppearanceStore(dataStore)
+        assertEquals(ColorSchemeChoice.DEFAULT, store.colorScheme.first())
+
+        store.saveColorScheme(ColorSchemeChoice.NEAPOLITAN)
+        assertEquals(ColorSchemeChoice.NEAPOLITAN, store.colorScheme.first())
+
+        dataStore.edit { it[stringPreferencesKey("color_scheme")] = "RAINBOW" }
+        assertEquals(ColorSchemeChoice.DEFAULT, store.colorScheme.first())
     }
 
     @Test

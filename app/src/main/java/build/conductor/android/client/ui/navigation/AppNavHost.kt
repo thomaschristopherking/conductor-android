@@ -20,6 +20,7 @@ import build.conductor.android.client.ui.projects.ProjectsScreen
 import build.conductor.android.client.ui.projects.ProjectsViewModel
 import build.conductor.android.client.ui.session.SessionScreen
 import build.conductor.android.client.ui.session.SessionViewModel
+import build.conductor.android.client.ui.settings.AppearanceViewModel
 import build.conductor.android.client.ui.settings.SettingsScreen
 import build.conductor.android.client.ui.settings.SettingsViewModel
 import build.conductor.android.client.ui.workspace.WorkspaceDetailScreen
@@ -53,6 +54,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
             val hasPrevious = navController.previousBackStackEntry != null
             SettingsScreen(
                 viewModel = viewModel { SettingsViewModel(container.repository, container.apiKeyStore, container.apiKeyState) },
+                appearanceViewModel = viewModel { AppearanceViewModel(container.appearanceStore) },
                 notice = entry.toRoute<SettingsRoute>().notice,
                 onKeySaved = { if (hasPrevious) navController.popBackStack() else navController.openProjectsAsRoot() },
                 onBack = if (hasPrevious) ({ navController.popBackStack() }) else null,
