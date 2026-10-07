@@ -44,7 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import build.conductor.android.client.data.WorkspaceState
 import build.conductor.android.client.data.api.Workspace
-import build.conductor.android.client.ui.components.AgentStatusBadge
+import build.conductor.android.client.ui.components.SessionStatusBadge
 import build.conductor.android.client.ui.components.EmptyView
 import build.conductor.android.client.ui.components.ErrorView
 import build.conductor.android.client.ui.components.LoadState
@@ -149,7 +149,7 @@ private fun WorkspaceContent(detail: WorkspaceDetail, onOpenSession: (String, St
             ListItem(
                 headlineContent = { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
                 supportingContent = { Text(listOfNotNull(row.session.model, row.session.effort).joinToString(" · ")) },
-                trailingContent = { AgentStatusBadge(row.status) },
+                trailingContent = { SessionStatusBadge(row.status, row.hasOpenQuestion) },
                 modifier = Modifier.clickable { onOpenSession(row.session.id, title) },
             )
             HorizontalDivider()

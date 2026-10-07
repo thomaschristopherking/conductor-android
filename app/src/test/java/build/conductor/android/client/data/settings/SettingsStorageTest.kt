@@ -1,6 +1,9 @@
 package build.conductor.android.client.data.settings
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import build.conductor.android.client.data.QuestionScan
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -62,6 +65,35 @@ class SettingsStorageTest {
         assertEquals(setOf("s1"), store.starredIds.first())
         store.unstar("s1")
         assertTrue(store.snapshot().isEmpty())
+    }
+
+    @Test
+    fun `each colour scheme is saved and read back, and an unknown value reads as the default`() = runTest {
+        val dataStore = newDataStore("appearance")
+        val store = AppearanceStore(dataStore)
+        assertEquals(ColorSchemeChoice.DEFAULT, store.colorScheme.first())
+
+        ColorSchemeChoice.entries.forEach { choice ->
+            store.saveColorScheme(choice)
+            assertEquals(choice, store.colorScheme.first())
+        }
+
+        dataStore.edit { it[stringPreferencesKey("color_scheme")] = "RAINBOW" }
+        assertEquals(ColorSchemeChoice.DEFAULT, store.colorScheme.first())
+    }
+
+    @Test
+    fun `starred sessions keep their question scan and the last question that the user saw`() = runTest {
+        val store = StarredSessionStore(newDataStore("questions"))
+        store.star("s1", "Fix CI", currentStatus = "working")
+
+        store.recordQuestionScans(mapOf("s1" to QuestionScan("m5", openQuestionId = "t1"), "gone" to QuestionScan("m1", null)))
+        assertEquals(StarredSession("Fix CI", "working", QuestionScan("m5", "t1"), seenQuestionId = "t1"), store.snapshot()["s1"])
+        store.recordQuestionScans(mapOf("s1" to QuestionScan("m7", openQuestionId = null)))
+        assertEquals("t1", store.snapshot()["s1"]?.seenQuestionId)
+        store.recordSeenQuestion("s1", "t3")
+        assertEquals("t3", store.snapshot()["s1"]?.seenQuestionId)
+        assertEquals(setOf("s1"), store.snapshot().keys)
     }
 
     @Test

@@ -38,6 +38,8 @@ class FakeConductorRepository : ConductorRepository {
     var projectsResult: () -> List<Project> = { emptyList() }
     var workspacePages: (offset: Int, includeArchived: Boolean) -> Page<Workspace> = { _, _ -> Page(emptyList()) }
     val workspaceRequests = mutableListOf<Pair<Int, Boolean>>()
+    val archivedWorkspaceIds = mutableListOf<String>()
+    var archiveFailure: ApiException? = null
     var favorites = listOf(FavoriteModel("codex", "gpt-6.1-sol", "high"))
     var sessionsInWorkspace = listOf<Session>()
     var sessionStatuses = mutableMapOf<String, String>()
@@ -46,6 +48,17 @@ class FakeConductorRepository : ConductorRepository {
 
     fun addAgentText(text: String) =
         addMessage("agent", """{"type":"agent","rawPayload":{"type":"assistant","message":{"content":[{"type":"text","text":"$text"}]}}}""")
+
+    fun addQuestion(toolUseId: String) = addMessage(
+        "agent",
+        """{"type":"agent","rawPayload":{"type":"assistant","message":{"content":[{"type":"tool_use","id":"$toolUseId","name":"mcp__conductor__AskUserQuestion",""" +
+            """"input":{"questions":[{"question":"Which colour?","options":["Red","Green"]},{"question":"Which sizes?","multiSelect":true,"options":["Small","Large"]}]}}]}}}""",
+    )
+
+    fun addToolResult(toolUseId: String, text: String) = addMessage(
+        "agent",
+        """{"type":"agent","rawPayload":{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"$toolUseId","content":[{"type":"text","text":"$text"}]}]}}}""",
+    )
 
     fun addTurnEnd() = addMessage("agent", """{"type":"agent","rawPayload":{"type":"result","subtype":"success","is_error":false}}""")
 
@@ -73,7 +86,11 @@ class FakeConductorRepository : ConductorRepository {
 
     override suspend fun renameWorkspace(workspaceId: String, name: String) = workspace(workspaceId, name)
 
-    override suspend fun archiveWorkspace(workspaceId: String) = ArchivedWorkspace(workspaceId, "archived")
+    override suspend fun archiveWorkspace(workspaceId: String): ArchivedWorkspace {
+        archiveFailure?.let { throw it }
+        archivedWorkspaceIds += workspaceId
+        return ArchivedWorkspace(workspaceId, "archived")
+    }
 
     override suspend fun sessions(workspaceId: String): List<Session> = sessionsInWorkspace
 

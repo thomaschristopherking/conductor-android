@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import build.conductor.android.client.notify.StatusNotifier
@@ -25,14 +26,18 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) requestedSession.value = sessionRouteFrom(intent)
         val container = (application as ConductorApplication).container
         setContent {
-            ConductorTheme {
-                Surface {
-                    val apiKeyState by container.apiKeyState.collectAsStateWithLifecycle()
-                    when (apiKeyState) {
-                        ApiKeyState.Loading -> LoadingView()
-                        else -> AppNavHost(container, hasApiKey = apiKeyState is ApiKeyState.Present, requestedSession)
-                    }
-                }
+            val colorScheme by container.colorScheme.collectAsStateWithLifecycle()
+            colorScheme?.let { choice -> ConductorTheme(choice) { AppContent(container) } }
+        }
+    }
+
+    @Composable
+    private fun AppContent(container: AppContainer) {
+        Surface {
+            val apiKeyState by container.apiKeyState.collectAsStateWithLifecycle()
+            when (apiKeyState) {
+                ApiKeyState.Loading -> LoadingView()
+                else -> AppNavHost(container, hasApiKey = apiKeyState is ApiKeyState.Present, requestedSession)
             }
         }
     }

@@ -9,14 +9,17 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
 ## What the app does
 
 - **Settings.** Paste a Conductor API key. The app tests the key with a read-only call (`GET /me`) before it saves the key. The key is encrypted with AES-GCM. The AES key stays in the Android Keystore. You can clear the key.
+- **Colour scheme.** Settings has three colour schemes. "Default" uses your wallpaper colours on Android 12 and later. "Neapolitan" uses strawberry, vanilla and chocolate. "Spumoni" uses pistachio, fior di latte and cherry. Both ice cream schemes have a light and a dark version.
 - **Projects.** The list of repositories that you can create workspaces in.
 - **Workspaces.** The workspaces of one project, with name, repository, status badge and last activity. Pull down to refresh. A filter chip shows archived workspaces.
+  - Swipe a workspace to the left to archive it. An "Undo" button shows for 5 seconds. The app sends the archive request only when the button goes away.
 - **New workspace.** Name, branch, agent, model, effort and a first prompt. Your favourite models from the Conductor app are shortcuts.
-- **Workspace detail.** The sessions of a workspace, each with its agent status. Create a session, rename the workspace, archive the workspace, or copy and share its Conductor link.
+- **Workspace detail.** The sessions of a workspace, each with its agent status. A session whose agent waits on a question shows "Question for you". Create a session, rename the workspace, archive the workspace, or copy and share its Conductor link.
 - **Session.** The transcript as a chat, with markdown and code blocks. A composer at the bottom moves up with the keyboard. "Stop" cancels the agent's turn.
+  - When the agent asks you a question, the chat shows the question with its options. Choose the options, or type in "Other", then tap "Send answers".
   - While the agent works, the app polls every 3 seconds for new messages only.
   - The badge shows "Working", "Waiting for you" (the API status `idle`) or "Error".
-- **Notifications (optional).** Tap the star on a session. The app checks starred sessions every 15 minutes. It notifies you when an agent stops working.
+- **Notifications (optional).** Tap the star on a session. The app checks starred sessions every 15 minutes. It notifies you when an agent stops working, or when it asks you a question.
 
 ## Install
 
@@ -99,16 +102,22 @@ I made these decisions without a person to ask.
 14. **Deep links.** Android cannot open `conductor://` links. "Open in Conductor" copies or shares the link, so you can open it on a computer.
 15. **Backup.** App data is not backed up. A restored key cannot be decrypted without the Keystore key.
 16. **Scope of actions.** Rename and archive apply to workspaces, as the task describes. The app does not rename or archive sessions, and it does not show archived sessions.
+17. **Archive by swipe.** The app waits until the "Undo" button goes away, then it sends the archive request. Archive stops the cloud machine, so an undo after the request would restart the machine. The app does not use `POST /v0/workspaces/{id}/unarchive`.
+18. **Colour scheme.** The Neapolitan and Spumoni schemes are fixed palettes. They do not use the wallpaper colours. Each text colour meets the WCAG AA contrast ratio of 4.5 to 1 on its background.
+19. **Answers to questions.** The public API cannot answer Conductor's question form. The app sends your answers as one message. The message closes the form, and the agent reads the answers from the message. See `docs/API_NOTES.md`.
 
 ## Known limitations
 
 - **Not run on a device.** The build machine had no emulator. Layout, keyboard behaviour, dynamic colour and notifications are not checked on a screen.
-- **Write calls are not checked against the live API.** I used the live API for read-only calls only. Create, rename, archive, send and cancel are checked against MockWebServer and the OpenAPI spec only.
+- **Write calls are not checked against the live API.** I used the live API for read-only calls, and for one test message that answered a question. Create, rename, archive and cancel are checked against MockWebServer and the OpenAPI spec only.
 - **Long transcripts.** The session screen loads the full transcript when it opens, 100 messages for each request.
 - **No offline cache.** Each screen loads from the network.
 - **Debug build only.** The APK is signed with the debug key.
 - **Background checks.** Android runs periodic work at most every 15 minutes, and it can delay the work to save battery. The session screen records each status that it sees, so a short turn that you start from the app is caught. A turn that starts and ends between two checks while the app is closed is not caught.
 - **Code blocks.** Code blocks have no syntax colours.
+- **Archive by swipe.** If Android stops the app during the 5 seconds of the "Undo" button, the app does not send the archive request. The workspace stays in the list.
+- **Finding a question costs requests.** The status stays "working" while a question waits, so the app reads the transcript to find it. The API returns messages oldest first, so the first look at a long session reads the whole transcript, 100 messages for each request. Later looks read only new messages.
+- **Codex questions.** I tested questions from Claude sessions only.
 
 ## Contributing
 

@@ -39,6 +39,67 @@ class SessionViewModelTest {
     }
 
     @Test
+    fun `an open question shows while the agent works, and the chosen answers go out as one message`() = runTest {
+        repository.sessionStatusValue = "working"
+        repository.addQuestion("t1")
+        val viewModel = openSession()
+        assertEquals("t1", viewModel.uiState.value.openQuestion?.toolUseId)
+
+        viewModel.toggleOption(questionIndex = 0, label = "Green")
+        viewModel.toggleOption(questionIndex = 1, label = "Small")
+        viewModel.onOtherTextChange(questionIndex = 1, text = "Huge")
+        viewModel.sendAnswers()
+        runCurrent()
+
+        assertEquals("My answers to your questions:\n1. Which colour?\n   Green\n2. Which sizes?\n   Small, Huge", repository.sentMessages.single().first)
+        assertNull(viewModel.uiState.value.openQuestion)
+        assertTrue(viewModel.uiState.value.items.last() is TranscriptItem.UserPrompt)
+        viewModel.onHidden()
+    }
+
+    @Test
+    fun `chosen answers survive a poll, and the question closes when its result arrives`() = runTest {
+        repository.sessionStatusValue = "working"
+        repository.addQuestion("t1")
+        val viewModel = openSession()
+        viewModel.toggleOption(questionIndex = 0, label = "Red")
+
+        repository.addAgentText("Still thinking")
+        advanceTimeBy(3_001)
+        assertEquals(setOf("Red"), viewModel.uiState.value.questionAnswers[0].selectedLabels)
+
+        repository.addToolResult("t1", "User responses: 1. Red")
+        advanceTimeBy(5_000)
+        assertNull(viewModel.uiState.value.openQuestion)
+        val card = viewModel.uiState.value.items.filterIsInstance<TranscriptItem.Questions>().single()
+        assertEquals("User responses: 1. Red", card.result)
+        viewModel.onHidden()
+    }
+
+    @Test
+    fun `no question is open when the agent does not work`() = runTest {
+        repository.addQuestion("t1")
+
+        val viewModel = openSession()
+
+        assertNull(viewModel.uiState.value.openQuestion)
+    }
+
+    @Test
+    fun `answers with nothing chosen are not sent`() = runTest {
+        repository.sessionStatusValue = "working"
+        repository.addQuestion("t1")
+        val viewModel = openSession()
+
+        viewModel.sendAnswers()
+        runCurrent()
+
+        assertTrue(repository.sentMessages.isEmpty())
+        assertNotNull(viewModel.uiState.value.openQuestion)
+        viewModel.onHidden()
+    }
+
+    @Test
     fun `the first load pages through the whole transcript and reads the status`() = runTest {
         repeat(5) { repository.addAgentText("Step $it") }
 
@@ -227,20 +288,7 @@ class SessionViewModelTest {
 
     @Test
     fun `the star follows the starred sessions store`() = runTest {
-        val starred = object : StarredSessions {
-            override val starredIds = MutableStateFlow(emptySet<String>())
-            var starredStatus: String? = null
-            override suspend fun star(sessionId: String, title: String, currentStatus: String?) {
-                starredIds.value = setOf(sessionId)
-                starredStatus = currentStatus
-            }
-            override suspend fun unstar(sessionId: String) {
-                starredIds.value = emptySet()
-            }
-            override suspend fun recordStatus(sessionId: String, status: String) {
-                starredStatus = status
-            }
-        }
+        val starred = RecordingStarredSessions()
         val viewModel = SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", starred)
         runCurrent()
 
@@ -253,6 +301,22 @@ class SessionViewModelTest {
         viewModel.toggleStar()
         runCurrent()
         assertFalse(viewModel.uiState.value.isStarred)
+    }
+
+    @Test
+    fun `a starred session records the open question that the screen shows, once`() = runTest {
+        val starred = RecordingStarredSessions(starredIds = MutableStateFlow(setOf(FakeConductorRepository.SESSION_ID)))
+        repository.sessionStatusValue = "working"
+        repository.addQuestion("t1")
+        val viewModel = SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", starred)
+        viewModel.onVisible()
+        runCurrent()
+
+        repository.addAgentText("Still waiting")
+        advanceTimeBy(3_001)
+
+        assertEquals(listOf("t1"), starred.seenQuestionIds)
+        viewModel.onHidden()
     }
 
     @Test
@@ -336,5 +400,27 @@ class SessionViewModelTest {
 
     private companion object {
         const val CLIENT_ID = "11111111-1111-4111-8111-111111111111"
+    }
+}
+
+private class RecordingStarredSessions(override val starredIds: MutableStateFlow<Set<String>> = MutableStateFlow(emptySet())) : StarredSessions {
+    var starredStatus: String? = null
+    val seenQuestionIds = mutableListOf<String>()
+
+    override suspend fun star(sessionId: String, title: String, currentStatus: String?) {
+        starredIds.value = setOf(sessionId)
+        starredStatus = currentStatus
+    }
+
+    override suspend fun unstar(sessionId: String) {
+        starredIds.value = emptySet()
+    }
+
+    override suspend fun recordStatus(sessionId: String, status: String) {
+        starredStatus = status
+    }
+
+    override suspend fun recordSeenQuestion(sessionId: String, toolUseId: String) {
+        seenQuestionIds += toolUseId
     }
 }

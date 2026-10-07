@@ -20,6 +20,7 @@ import build.conductor.android.client.ui.projects.ProjectsScreen
 import build.conductor.android.client.ui.projects.ProjectsViewModel
 import build.conductor.android.client.ui.session.SessionScreen
 import build.conductor.android.client.ui.session.SessionViewModel
+import build.conductor.android.client.ui.settings.AppearanceViewModel
 import build.conductor.android.client.ui.settings.SettingsScreen
 import build.conductor.android.client.ui.settings.SettingsViewModel
 import build.conductor.android.client.ui.workspace.WorkspaceDetailScreen
@@ -53,6 +54,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
             val hasPrevious = navController.previousBackStackEntry != null
             SettingsScreen(
                 viewModel = viewModel { SettingsViewModel(container.repository, container.apiKeyStore, container.apiKeyState) },
+                appearanceViewModel = viewModel { AppearanceViewModel(container.appearanceStore) },
                 notice = entry.toRoute<SettingsRoute>().notice,
                 onKeySaved = { if (hasPrevious) navController.popBackStack() else navController.openProjectsAsRoot() },
                 onBack = if (hasPrevious) ({ navController.popBackStack() }) else null,
@@ -68,7 +70,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
         composable<WorkspacesRoute> { entry ->
             val route = entry.toRoute<WorkspacesRoute>()
             WorkspacesScreen(
-                viewModel = viewModel { WorkspacesViewModel(container.repository, route.projectId) },
+                viewModel = viewModel { WorkspacesViewModel(container.repository, route.projectId, container.applicationScope) },
                 projectName = route.projectName,
                 onOpenWorkspace = { navController.navigate(WorkspaceRoute(it.id)) },
                 onCreateWorkspace = { navController.navigate(CreateWorkspaceRoute(route.projectId, route.projectName)) },
@@ -91,7 +93,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
         composable<WorkspaceRoute> { entry ->
             val route = entry.toRoute<WorkspaceRoute>()
             WorkspaceDetailScreen(
-                viewModel = viewModel { WorkspaceDetailViewModel(container.repository, route.workspaceId) },
+                viewModel = viewModel { WorkspaceDetailViewModel(container.repository, route.workspaceId, container.openQuestionTracker) },
                 onOpenSession = { sessionId, title -> navController.navigate(SessionRoute(sessionId, title)) },
                 onArchived = { navController.popBackStack() },
                 onBack = { navController.popBackStack() },

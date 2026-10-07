@@ -5,9 +5,13 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import build.conductor.android.client.data.ApiConductorRepository
 import build.conductor.android.client.data.ConductorRepository
+import build.conductor.android.client.data.OpenQuestionTracker
+import build.conductor.android.client.data.QuestionScanner
 import build.conductor.android.client.data.api.createConductorApi
 import build.conductor.android.client.data.settings.AesGcmCipher
 import build.conductor.android.client.data.settings.ApiKeyStore
+import build.conductor.android.client.data.settings.AppearanceStore
+import build.conductor.android.client.data.settings.ColorSchemeChoice
 import build.conductor.android.client.data.settings.StarredSessionStore
 import build.conductor.android.client.data.settings.androidKeystoreKey
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +34,12 @@ class AppContainer(context: Context) {
         .map { key -> if (key.isNullOrBlank()) ApiKeyState.Missing else ApiKeyState.Present(key) }
         .stateIn(applicationScope, SharingStarted.Eagerly, ApiKeyState.Loading)
 
+    val appearanceStore = AppearanceStore(settingsDataStore)
+
+    /** Null until DataStore reads the saved choice, so the first frame does not show the wrong colours. */
+    val colorScheme: StateFlow<ColorSchemeChoice?> = appearanceStore.colorScheme
+        .stateIn(applicationScope, SharingStarted.Eagerly, null)
+
     val starredSessionStore = StarredSessionStore(
         PreferenceDataStoreFactory.create { context.preferencesDataStoreFile(STARRED_SESSIONS_FILE) },
     )
@@ -37,6 +47,10 @@ class AppContainer(context: Context) {
     val repository: ConductorRepository = ApiConductorRepository(
         createConductorApi(apiKey = { (apiKeyState.value as? ApiKeyState.Present)?.apiKey }),
     )
+
+    val questionScanner = QuestionScanner(repository)
+
+    val openQuestionTracker = OpenQuestionTracker(questionScanner)
 
     private companion object {
         const val SETTINGS_FILE = "settings"

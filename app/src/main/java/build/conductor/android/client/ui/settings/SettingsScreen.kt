@@ -1,6 +1,9 @@
 package build.conductor.android.client.ui.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,6 +12,9 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -18,11 +24,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,13 +41,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import build.conductor.android.client.data.settings.ColorSchemeChoice
+import build.conductor.android.client.ui.theme.flavours
 
 private const val API_KEYS_URL = "https://app.conductor.build/home/api-keys"
 
@@ -47,11 +61,13 @@ private const val API_KEYS_URL = "https://app.conductor.build/home/api-keys"
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
+    appearanceViewModel: AppearanceViewModel,
     notice: String?,
     onKeySaved: () -> Unit,
     onBack: (() -> Unit)?,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val colorScheme by appearanceViewModel.colorScheme.collectAsStateWithLifecycle()
     LaunchedEffect(viewModel) { viewModel.eventFlow.collect { onKeySaved() } }
     Scaffold(
         topBar = {
@@ -68,6 +84,8 @@ fun SettingsScreen(
             if (notice != null) NoticeCard(notice)
             SavedKeySection(state.savedKeyMask, state.signedInAs, viewModel::clearKey)
             KeyEntrySection(state, viewModel::onKeyInputChange, viewModel::testAndSave)
+            HorizontalDivider()
+            ColorSchemeSection(colorScheme, appearanceViewModel::selectColorScheme)
         }
     }
 }
@@ -130,4 +148,43 @@ private fun KeyEntrySection(state: SettingsUiState, onInputChange: (String) -> U
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+}
+
+@Composable
+private fun ColorSchemeSection(selected: ColorSchemeChoice, onSelect: (ColorSchemeChoice) -> Unit) {
+    Text("Colour scheme", style = MaterialTheme.typography.titleMedium)
+    Column(modifier = Modifier.selectableGroup()) {
+        ColorSchemeChoice.entries.forEach { choice ->
+            ColorSchemeOption(choice, isSelected = choice == selected, onClick = { onSelect(choice) })
+        }
+    }
+}
+
+@Composable
+private fun ColorSchemeOption(choice: ColorSchemeChoice, isSelected: Boolean, onClick: () -> Unit) {
+    val (label, description) = when (choice) {
+        ColorSchemeChoice.DEFAULT -> "Default" to "Your wallpaper colours on Android 12 and later."
+        ColorSchemeChoice.NEAPOLITAN -> "Neapolitan" to "Strawberry, vanilla and chocolate."
+        ColorSchemeChoice.SPUMONI -> "Spumoni" to "Pistachio, fior di latte and cherry."
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().selectable(selected = isSelected, role = Role.RadioButton, onClick = onClick).padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = isSelected, onClick = null)
+        Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (choice.flavours.isNotEmpty()) FlavourSwatch(choice.flavours)
+    }
+}
+
+/** The outline keeps a white flavour visible on a white surface. */
+@Composable
+private fun FlavourSwatch(flavours: List<Color>) {
+    val shape = RoundedCornerShape(6.dp)
+    Row(modifier = Modifier.clip(shape).border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)) {
+        flavours.forEach { flavour -> Box(modifier = Modifier.size(width = 14.dp, height = 28.dp).background(flavour)) }
+    }
 }
