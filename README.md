@@ -10,12 +10,15 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
 
 - **Settings.** Paste a Conductor API key. The app tests the key with a read-only call (`GET /me`) before it saves the key. The key is encrypted with AES-GCM. The AES key stays in the Android Keystore. You can clear the key.
 - **Colour scheme.** Settings has three colour schemes. "Default" uses your wallpaper colours on Android 12 and later. "Neapolitan" uses strawberry, vanilla and chocolate. "Spumoni" uses pistachio, fior di latte and cherry. Both ice cream schemes have a light and a dark version.
-- **Projects.** The list of repositories that you can create workspaces in.
-- **Workspaces.** The workspaces of one project, with name, repository, status badge and last activity. Pull down to refresh. A filter chip shows archived workspaces.
+- **Workspaces (home screen).** All your workspaces, grouped by the sections that you made in the Conductor app. The sections come in the order that the API returns them. Workspaces with no section go under "Other workspaces". Each row shows the name, repository, status badge and last activity. Pull down to refresh. A filter chip shows archived workspaces. If the sections do not load, the list shows all workspaces with no headers and a message.
+- **Projects.** The list of repositories. The list button on the home screen opens it. A project opens the workspaces of that repository. "New workspace" on the home screen asks for a project first.
+- **Workspaces of a project.** The same rows as the home screen, for one repository.
   - Swipe a workspace to the left to archive it. An "Undo" button shows for 5 seconds. The app sends the archive request only when the button goes away.
 - **New workspace.** Name, branch, agent, model, effort and a first prompt. Your favourite models from the Conductor app are shortcuts.
 - **Workspace detail.** The sessions of a workspace, each with its agent status. A session whose agent waits on a question shows "Question for you". Create a session, rename the workspace, archive the workspace, or copy and share its Conductor link.
 - **Session.** The transcript as a chat, with markdown and code blocks. A composer at the bottom moves up with the keyboard. "Stop" cancels the agent's turn.
+  - The chat opens at the newest message. New messages stay in view while you are at the newest message.
+  - When you scroll back to older messages, new messages do not move the chat. A round arrow button takes you back to the newest message. When you send a prompt, the chat goes to the newest message.
   - When the agent asks you a question, the chat shows the question with its options. Choose the options, or type in "Other", then tap "Send answers".
   - While the agent works, the app polls every 3 seconds for new messages only.
   - The badge shows "Working", "Waiting for you" (the API status `idle`) or "Error".
@@ -60,6 +63,8 @@ The unit tests run on the JVM. They do not need a device or the network.
 - `data/transcript/TranscriptParserTest.kt` turns live transcript events into chat rows.
 - `data/ModelCatalogTest.kt` compares the agent and model lists with `docs/openapi.json`. It fails when the spec changes.
 - `ui/session/SessionViewModelTest.kt` tests polling, back-off, sending and cancelling with virtual time.
+- `ui/home/WorkspaceGroupsTest.kt` and `ui/home/HomeViewModelTest.kt` test the grouping by section. `ui/home/WorkspaceGroupListTest.kt` shows the grouped list in Robolectric.
+- `ui/session/TranscriptScrollTest.kt` shows the chat list in Robolectric. It tests the scroll position and the button that goes to the newest message.
 
 The fixtures in `app/src/test/resources/fixtures/` are scrubbed copies of live API responses. To capture them again, run:
 

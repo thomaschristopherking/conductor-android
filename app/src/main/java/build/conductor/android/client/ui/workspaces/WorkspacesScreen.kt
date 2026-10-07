@@ -181,7 +181,7 @@ private fun ArchiveSwipeBackground() {
 }
 
 @Composable
-private fun WorkspaceRow(workspace: Workspace, onClick: () -> Unit) {
+internal fun WorkspaceRow(workspace: Workspace, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(workspace.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
