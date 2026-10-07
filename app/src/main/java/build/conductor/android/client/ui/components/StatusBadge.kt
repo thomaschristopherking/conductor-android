@@ -43,6 +43,12 @@ fun AgentStatusBadge(status: AgentStatus, modifier: Modifier = Modifier) {
     StatusBadge(text, tone, modifier)
 }
 
+/** The API reports "working" while the agent waits on a question, so the question takes priority. */
+@Composable
+fun SessionStatusBadge(status: AgentStatus, hasOpenQuestion: Boolean, modifier: Modifier = Modifier) {
+    if (hasOpenQuestion) StatusBadge("Question for you", BadgeTone.POSITIVE, modifier) else AgentStatusBadge(status, modifier)
+}
+
 @Composable
 fun WorkspaceStateBadge(state: WorkspaceState, lifecycleStep: String?, modifier: Modifier = Modifier) {
     val label = state.name.lowercase().replaceFirstChar { it.uppercase() }

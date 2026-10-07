@@ -68,4 +68,14 @@ class QuestionsTest {
         )
         assertEquals("Error asking the user a question: boom", describeQuestionResult("Error asking the user a question: boom\nError code: X"))
     }
+
+    @Test
+    fun `the open question id carries across chunks of messages`() {
+        val opened = findOpenQuestionId(null, listOf(card))
+        assertEquals("t1", opened)
+        assertEquals("t1", findOpenQuestionId(opened, listOf(TranscriptItem.AssistantText("a", "Hi"))))
+        assertEquals("t1", findOpenQuestionId(opened, listOf(TranscriptItem.ToolResult("r0", "ok", isError = false, toolUseId = "t9"))))
+        assertNull(findOpenQuestionId(opened, listOf(TranscriptItem.ToolResult("r1", "User responses: 1. Red", isError = false, toolUseId = "t1"))))
+        assertNull(findOpenQuestionId(opened, listOf(TranscriptItem.TurnEnd("e", isError = false, durationMillis = null, costUsd = null))))
+    }
 }

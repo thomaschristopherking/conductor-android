@@ -93,7 +93,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
         composable<WorkspaceRoute> { entry ->
             val route = entry.toRoute<WorkspaceRoute>()
             WorkspaceDetailScreen(
-                viewModel = viewModel { WorkspaceDetailViewModel(container.repository, route.workspaceId) },
+                viewModel = viewModel { WorkspaceDetailViewModel(container.repository, route.workspaceId, container.openQuestionTracker) },
                 onOpenSession = { sessionId, title -> navController.navigate(SessionRoute(sessionId, title)) },
                 onArchived = { navController.popBackStack() },
                 onBack = { navController.popBackStack() },

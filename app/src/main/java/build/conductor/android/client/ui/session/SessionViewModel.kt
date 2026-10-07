@@ -78,6 +78,9 @@ class SessionViewModel(
     /** Questions whose answers the app sent; the form closes before the agent's tool result arrives. */
     private val answeredQuestionIds = mutableSetOf<String>()
 
+    /** The last open question that this screen recorded as seen for a starred session. */
+    private var recordedSeenQuestionId: String? = null
+
     /** The text and id of a prompt whose send failed; a resend of the same text reuses the id, so the server can drop a duplicate. */
     private var unsentPrompt: Pair<String, String>? = null
     private val pollMutex = Mutex()
@@ -314,6 +317,14 @@ class SessionViewModel(
                 questionAnswers = answersFor(openQuestion, current),
             )
         }
+        openQuestion?.let { recordSeenQuestion(it.toolUseId) }
+    }
+
+    /** The user sees the question here, so the background check must not notify about it. */
+    private fun recordSeenQuestion(toolUseId: String) {
+        if (!state.value.isStarred || toolUseId == recordedSeenQuestionId) return
+        recordedSeenQuestionId = toolUseId
+        viewModelScope.launch { starredSessions.recordSeenQuestion(sessionId, toolUseId) }
     }
 
     /** Keeps the user's choices while the same question stays open. */

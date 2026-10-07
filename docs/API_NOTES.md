@@ -107,6 +107,7 @@ An agent asks the user a question with Conductor's MCP tool, `mcp__conductor__As
 - In the test, the message was `My answers to your questions:` and one numbered line for each question. The agent replied with the chosen answers.
 - An answer in the desktop app gives the tool result `User responses:` and one numbered line for each question.
 - `POST /v0/sessions/{id}/cancel` also closes the question, but it drops queued messages. To answer, send a message. Do not cancel first.
+- To find an open question without the session screen, the app reads the transcript after a saved message id. The background check saves that id for each starred session.
 
 ## Create a workspace
 

@@ -1,6 +1,7 @@
 package build.conductor.android.client.notify
 
 import build.conductor.android.client.data.AgentStatus
+import build.conductor.android.client.data.QuestionScan
 import build.conductor.android.client.data.settings.StarredSession
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -30,5 +31,21 @@ class FinishedSessionsTest {
             listOf(FinishedSession("done", "Done", AgentStatus.IDLE), FinishedSession("failed", "Failed", AgentStatus.ERROR)),
             finished,
         )
+    }
+
+    @Test
+    fun `a question is reported once, and not when the screen already showed it`() {
+        val starred = mapOf(
+            "new" to StarredSession("New", "working"),
+            "told" to StarredSession("Told", "working", seenQuestionId = "t2"),
+            "none" to StarredSession("None", "working"),
+        )
+        val scans = mapOf(
+            "new" to QuestionScan("m9", openQuestionId = "t1"),
+            "told" to QuestionScan("m4", openQuestionId = "t2"),
+            "none" to QuestionScan("m2", openQuestionId = null),
+        )
+
+        assertEquals(listOf(AskingSession("new", "New")), findNewQuestions(starred, scans))
     }
 }

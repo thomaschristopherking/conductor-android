@@ -8,6 +8,8 @@ import build.conductor.android.client.FakeConductorRepository
 import build.conductor.android.client.MainDispatcherRule
 import build.conductor.android.client.data.AgentStatus
 import build.conductor.android.client.data.ModelSelection
+import build.conductor.android.client.data.OpenQuestionTracker
+import build.conductor.android.client.data.QuestionScanner
 import build.conductor.android.client.data.api.Session
 import build.conductor.android.client.ui.components.LoadState
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -27,7 +29,7 @@ class WorkspaceDetailViewModelTest {
 
     @Test
     fun `the detail shows each session with its own status`() = runTest {
-        val viewModel = WorkspaceDetailViewModel(repository, "w1")
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
         advanceUntilIdle()
 
         val detail = (viewModel.uiState.value.detail as LoadState.Loaded).value
@@ -36,8 +38,19 @@ class WorkspaceDetailViewModelTest {
     }
 
     @Test
+    fun `a working session with an open question says so, and only working sessions are scanned`() = runTest {
+        repository.addQuestion("t1")
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
+        advanceUntilIdle()
+
+        val detail = (viewModel.uiState.value.detail as LoadState.Loaded).value
+        assertEquals(listOf(true, false), detail.sessions.map { it.hasOpenQuestion })
+        assertEquals(listOf<String?>(null), repository.messageCursors)
+    }
+
+    @Test
     fun `rename replaces the workspace name`() = runTest {
-        val viewModel = WorkspaceDetailViewModel(repository, "w1")
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
         advanceUntilIdle()
 
         viewModel.rename("  Better  ")
@@ -48,7 +61,7 @@ class WorkspaceDetailViewModelTest {
 
     @Test
     fun `archive and create session emit navigation events`() = runTest {
-        val viewModel = WorkspaceDetailViewModel(repository, "w1")
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
         advanceUntilIdle()
 
         viewModel.eventFlow.test {

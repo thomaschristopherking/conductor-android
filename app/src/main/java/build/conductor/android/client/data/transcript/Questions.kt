@@ -36,11 +36,20 @@ fun attachQuestionResults(items: List<TranscriptItem>): List<TranscriptItem> {
 
 /** The last question with no result, if no turn ended after it. */
 fun findOpenQuestion(items: List<TranscriptItem>): TranscriptItem.Questions? {
-    val lastQuestionIndex = items.indexOfLast { it is TranscriptItem.Questions }
-    val question = items.getOrNull(lastQuestionIndex) as? TranscriptItem.Questions ?: return null
-    val hasTurnEnded = items.drop(lastQuestionIndex + 1).any { it is TranscriptItem.TurnEnd }
-    return question.takeIf { it.result == null && !hasTurnEnded }
+    val openQuestionId = findOpenQuestionId(null, items) ?: return null
+    return items.filterIsInstance<TranscriptItem.Questions>().lastOrNull { it.toolUseId == openQuestionId }
 }
+
+/** The id of the question that is open after [newItems], given the question that was open before them. */
+fun findOpenQuestionId(previousOpenId: String?, newItems: List<TranscriptItem>): String? =
+    newItems.fold(previousOpenId) { openId, item ->
+        when (item) {
+            is TranscriptItem.Questions -> item.toolUseId.takeIf { item.result == null }
+            is TranscriptItem.ToolResult -> openId.takeIf { it != item.toolUseId }
+            is TranscriptItem.TurnEnd -> null
+            else -> openId
+        }
+    }
 
 /** The public API cannot answer the question form, so the answers go as one message; the message also closes the form. */
 fun formatAnswers(questions: List<Question>, answers: List<QuestionAnswer>): String {

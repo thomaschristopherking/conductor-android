@@ -6,6 +6,7 @@ import build.conductor.android.client.data.AgentStatus
 import build.conductor.android.client.data.ConductorRepository
 import build.conductor.android.client.data.ModelCatalog
 import build.conductor.android.client.data.ModelSelection
+import build.conductor.android.client.data.OpenQuestionTracker
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.CreateSessionRequest
 import build.conductor.android.client.data.api.Session
@@ -26,7 +27,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
-data class SessionRow(val session: Session, val status: AgentStatus)
+/** [hasOpenQuestion] is true when the agent works and waits on a question. */
+data class SessionRow(val session: Session, val status: AgentStatus, val hasOpenQuestion: Boolean = false)
 
 data class WorkspaceDetail(val workspace: Workspace, val sessions: List<SessionRow>)
 
@@ -50,6 +52,7 @@ data class NewSessionInput(val selection: ModelSelection, val name: String, val 
 class WorkspaceDetailViewModel(
     private val repository: ConductorRepository,
     private val workspaceId: String,
+    private val openQuestionTracker: OpenQuestionTracker,
 ) : ViewModel() {
     private val state = MutableStateFlow(WorkspaceDetailUiState())
     val uiState: StateFlow<WorkspaceDetailUiState> = state.asStateFlow()
@@ -87,7 +90,19 @@ class WorkspaceDetailViewModel(
     /** One failed status call shows that session as unknown; it does not fail the screen. */
     private suspend fun withStatuses(sessions: List<Session>): List<SessionRow> = coroutineScope {
         val permits = Semaphore(MAX_PARALLEL_STATUS_CALLS)
-        sessions.map { session -> async { permits.withPermit { SessionRow(session, statusOf(session.id)) } } }.awaitAll()
+        sessions.map { session -> async { permits.withPermit { rowFor(session) } } }.awaitAll()
+    }
+
+    private suspend fun rowFor(session: Session): SessionRow {
+        val status = statusOf(session.id)
+        return SessionRow(session, status, hasOpenQuestion = status == AgentStatus.WORKING && hasOpenQuestion(session.id))
+    }
+
+    /** A failed scan shows the session as working; it does not fail the screen. */
+    private suspend fun hasOpenQuestion(sessionId: String): Boolean = try {
+        openQuestionTracker.openQuestionId(sessionId) != null
+    } catch (_: ApiException) {
+        false
     }
 
     private suspend fun statusOf(sessionId: String): AgentStatus = try {

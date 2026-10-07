@@ -5,6 +5,8 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import build.conductor.android.client.data.ApiConductorRepository
 import build.conductor.android.client.data.ConductorRepository
+import build.conductor.android.client.data.OpenQuestionTracker
+import build.conductor.android.client.data.QuestionScanner
 import build.conductor.android.client.data.api.createConductorApi
 import build.conductor.android.client.data.settings.AesGcmCipher
 import build.conductor.android.client.data.settings.ApiKeyStore
@@ -45,6 +47,10 @@ class AppContainer(context: Context) {
     val repository: ConductorRepository = ApiConductorRepository(
         createConductorApi(apiKey = { (apiKeyState.value as? ApiKeyState.Present)?.apiKey }),
     )
+
+    val questionScanner = QuestionScanner(repository)
+
+    val openQuestionTracker = OpenQuestionTracker(questionScanner)
 
     private companion object {
         const val SETTINGS_FILE = "settings"

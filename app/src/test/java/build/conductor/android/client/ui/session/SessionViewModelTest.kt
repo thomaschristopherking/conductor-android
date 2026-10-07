@@ -288,20 +288,7 @@ class SessionViewModelTest {
 
     @Test
     fun `the star follows the starred sessions store`() = runTest {
-        val starred = object : StarredSessions {
-            override val starredIds = MutableStateFlow(emptySet<String>())
-            var starredStatus: String? = null
-            override suspend fun star(sessionId: String, title: String, currentStatus: String?) {
-                starredIds.value = setOf(sessionId)
-                starredStatus = currentStatus
-            }
-            override suspend fun unstar(sessionId: String) {
-                starredIds.value = emptySet()
-            }
-            override suspend fun recordStatus(sessionId: String, status: String) {
-                starredStatus = status
-            }
-        }
+        val starred = RecordingStarredSessions()
         val viewModel = SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", starred)
         runCurrent()
 
@@ -314,6 +301,22 @@ class SessionViewModelTest {
         viewModel.toggleStar()
         runCurrent()
         assertFalse(viewModel.uiState.value.isStarred)
+    }
+
+    @Test
+    fun `a starred session records the open question that the screen shows, once`() = runTest {
+        val starred = RecordingStarredSessions(starredIds = MutableStateFlow(setOf(FakeConductorRepository.SESSION_ID)))
+        repository.sessionStatusValue = "working"
+        repository.addQuestion("t1")
+        val viewModel = SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", starred)
+        viewModel.onVisible()
+        runCurrent()
+
+        repository.addAgentText("Still waiting")
+        advanceTimeBy(3_001)
+
+        assertEquals(listOf("t1"), starred.seenQuestionIds)
+        viewModel.onHidden()
     }
 
     @Test
@@ -397,5 +400,27 @@ class SessionViewModelTest {
 
     private companion object {
         const val CLIENT_ID = "11111111-1111-4111-8111-111111111111"
+    }
+}
+
+private class RecordingStarredSessions(override val starredIds: MutableStateFlow<Set<String>> = MutableStateFlow(emptySet())) : StarredSessions {
+    var starredStatus: String? = null
+    val seenQuestionIds = mutableListOf<String>()
+
+    override suspend fun star(sessionId: String, title: String, currentStatus: String?) {
+        starredIds.value = setOf(sessionId)
+        starredStatus = currentStatus
+    }
+
+    override suspend fun unstar(sessionId: String) {
+        starredIds.value = emptySet()
+    }
+
+    override suspend fun recordStatus(sessionId: String, status: String) {
+        starredStatus = status
+    }
+
+    override suspend fun recordSeenQuestion(sessionId: String, toolUseId: String) {
+        seenQuestionIds += toolUseId
     }
 }

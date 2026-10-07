@@ -14,12 +14,12 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
 - **Workspaces.** The workspaces of one project, with name, repository, status badge and last activity. Pull down to refresh. A filter chip shows archived workspaces.
   - Swipe a workspace to the left to archive it. An "Undo" button shows for 5 seconds. The app sends the archive request only when the button goes away.
 - **New workspace.** Name, branch, agent, model, effort and a first prompt. Your favourite models from the Conductor app are shortcuts.
-- **Workspace detail.** The sessions of a workspace, each with its agent status. Create a session, rename the workspace, archive the workspace, or copy and share its Conductor link.
+- **Workspace detail.** The sessions of a workspace, each with its agent status. A session whose agent waits on a question shows "Question for you". Create a session, rename the workspace, archive the workspace, or copy and share its Conductor link.
 - **Session.** The transcript as a chat, with markdown and code blocks. A composer at the bottom moves up with the keyboard. "Stop" cancels the agent's turn.
   - When the agent asks you a question, the chat shows the question with its options. Choose the options, or type in "Other", then tap "Send answers".
   - While the agent works, the app polls every 3 seconds for new messages only.
   - The badge shows "Working", "Waiting for you" (the API status `idle`) or "Error".
-- **Notifications (optional).** Tap the star on a session. The app checks starred sessions every 15 minutes. It notifies you when an agent stops working.
+- **Notifications (optional).** Tap the star on a session. The app checks starred sessions every 15 minutes. It notifies you when an agent stops working, or when it asks you a question.
 
 ## Install
 
@@ -116,7 +116,7 @@ I made these decisions without a person to ask.
 - **Background checks.** Android runs periodic work at most every 15 minutes, and it can delay the work to save battery. The session screen records each status that it sees, so a short turn that you start from the app is caught. A turn that starts and ends between two checks while the app is closed is not caught.
 - **Code blocks.** Code blocks have no syntax colours.
 - **Archive by swipe.** If Android stops the app during the 5 seconds of the "Undo" button, the app does not send the archive request. The workspace stays in the list.
-- **Questions outside the session screen.** The session list and the notifications use the agent status. That status stays "working" while a question waits, so only the session screen shows the question.
+- **Finding a question costs requests.** The status stays "working" while a question waits, so the app reads the transcript to find it. The API returns messages oldest first, so the first look at a long session reads the whole transcript, 100 messages for each request. Later looks read only new messages.
 - **Codex questions.** I tested questions from Claude sessions only.
 
 ## Contributing

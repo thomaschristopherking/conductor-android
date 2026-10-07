@@ -52,9 +52,7 @@ import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import build.conductor.android.client.data.AgentStatus
 import build.conductor.android.client.data.transcript.TranscriptItem
-import build.conductor.android.client.ui.components.AgentStatusBadge
-import build.conductor.android.client.ui.components.BadgeTone
-import build.conductor.android.client.ui.components.StatusBadge
+import build.conductor.android.client.ui.components.SessionStatusBadge
 import build.conductor.android.client.ui.components.EmptyView
 import build.conductor.android.client.ui.components.ErrorView
 import build.conductor.android.client.ui.components.LoadingView
@@ -133,11 +131,7 @@ private fun StatusBar(state: SessionUiState, onCancel: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (state.openQuestion != null) {
-            StatusBadge("Question for you", BadgeTone.POSITIVE)
-        } else {
-            AgentStatusBadge(state.status)
-        }
+        SessionStatusBadge(state.status, hasOpenQuestion = state.openQuestion != null)
         if (state.status == AgentStatus.WORKING && state.openQuestion == null) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
         Text(
             text = statusDescription(state),
