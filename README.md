@@ -9,7 +9,7 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
 ## What the app does
 
 - **Settings.** Paste a Conductor API key. The app tests the key with a read-only call (`GET /me`) before it saves the key. The key is encrypted with AES-GCM. The AES key stays in the Android Keystore. You can clear the key.
-- **Colour scheme.** Settings has two colour schemes. "Default" uses your wallpaper colours on Android 12 and later. "Neapolitan" uses strawberry, vanilla and chocolate, in light and dark mode.
+- **Colour scheme.** Settings has three colour schemes. "Default" uses your wallpaper colours on Android 12 and later. "Neapolitan" uses strawberry, vanilla and chocolate. "Spumoni" uses pistachio, fior di latte and cherry. Both ice cream schemes have a light and a dark version.
 - **Projects.** The list of repositories that you can create workspaces in.
 - **Workspaces.** The workspaces of one project, with name, repository, status badge and last activity. Pull down to refresh. A filter chip shows archived workspaces.
   - Swipe a workspace to the left to archive it. An "Undo" button shows for 5 seconds. The app sends the archive request only when the button goes away.
@@ -102,7 +102,7 @@ I made these decisions without a person to ask.
 15. **Backup.** App data is not backed up. A restored key cannot be decrypted without the Keystore key.
 16. **Scope of actions.** Rename and archive apply to workspaces, as the task describes. The app does not rename or archive sessions, and it does not show archived sessions.
 17. **Archive by swipe.** The app waits until the "Undo" button goes away, then it sends the archive request. Archive stops the cloud machine, so an undo after the request would restart the machine. The app does not use `POST /v0/workspaces/{id}/unarchive`.
-18. **Colour scheme.** The Neapolitan scheme is a fixed palette. It does not use the wallpaper colours. Each text colour meets the WCAG AA contrast ratio of 4.5 to 1 on its background.
+18. **Colour scheme.** The Neapolitan and Spumoni schemes are fixed palettes. They do not use the wallpaper colours. Each text colour meets the WCAG AA contrast ratio of 4.5 to 1 on its background.
 
 ## Known limitations
 

@@ -67,13 +67,15 @@ class SettingsStorageTest {
     }
 
     @Test
-    fun `the colour scheme is saved and read back, and an unknown value reads as the default`() = runTest {
+    fun `each colour scheme is saved and read back, and an unknown value reads as the default`() = runTest {
         val dataStore = newDataStore("appearance")
         val store = AppearanceStore(dataStore)
         assertEquals(ColorSchemeChoice.DEFAULT, store.colorScheme.first())
 
-        store.saveColorScheme(ColorSchemeChoice.NEAPOLITAN)
-        assertEquals(ColorSchemeChoice.NEAPOLITAN, store.colorScheme.first())
+        ColorSchemeChoice.entries.forEach { choice ->
+            store.saveColorScheme(choice)
+            assertEquals(choice, store.colorScheme.first())
+        }
 
         dataStore.edit { it[stringPreferencesKey("color_scheme")] = "RAINBOW" }
         assertEquals(ColorSchemeChoice.DEFAULT, store.colorScheme.first())

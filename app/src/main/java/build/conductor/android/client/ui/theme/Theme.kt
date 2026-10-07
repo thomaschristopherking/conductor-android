@@ -23,9 +23,18 @@ fun ConductorTheme(choice: ColorSchemeChoice, isDark: Boolean = isSystemInDarkTh
     val colorScheme = when (choice) {
         ColorSchemeChoice.DEFAULT -> defaultColorScheme(isDark)
         ColorSchemeChoice.NEAPOLITAN -> if (isDark) NeapolitanDarkColors else NeapolitanLightColors
+        ColorSchemeChoice.SPUMONI -> if (isDark) SpumoniDarkColors else SpumoniLightColors
     }
     MaterialTheme(colorScheme = colorScheme, content = content)
 }
+
+/** The flavours of an ice cream scheme for the preview in Settings, or none for the default scheme. */
+val ColorSchemeChoice.flavours: List<Color>
+    get() = when (this) {
+        ColorSchemeChoice.DEFAULT -> emptyList()
+        ColorSchemeChoice.NEAPOLITAN -> NeapolitanFlavours
+        ColorSchemeChoice.SPUMONI -> SpumoniFlavours
+    }
 
 /** Uses the wallpaper colours on Android 12 and later, and a fixed purple scheme before that. */
 @Composable

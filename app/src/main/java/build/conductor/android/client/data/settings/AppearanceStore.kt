@@ -12,6 +12,7 @@ enum class ColorSchemeChoice {
     /** The wallpaper colours on Android 12 and later, and a purple scheme before that. */
     DEFAULT,
     NEAPOLITAN,
+    SPUMONI,
     ;
 
     companion object {
