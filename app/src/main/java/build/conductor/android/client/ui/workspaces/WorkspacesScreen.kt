@@ -115,7 +115,7 @@ fun WorkspacesScreen(
 private fun UndoArchiveSnackbar(workspace: Workspace?, snackbarHostState: SnackbarHostState, viewModel: WorkspacesViewModel) {
     LaunchedEffect(workspace?.id) {
         if (workspace == null) return@LaunchedEffect
-        val result = snackbarHostState.showSnackbar("Archived ${workspace.name}", actionLabel = "Undo", duration = SnackbarDuration.Indefinite)
+        val result = snackbarHostState.showSnackbar("Archived \"${workspace.name}\"", actionLabel = "Undo", duration = SnackbarDuration.Indefinite)
         when (result) {
             SnackbarResult.ActionPerformed -> viewModel.undoArchive()
             SnackbarResult.Dismissed -> viewModel.confirmArchive()

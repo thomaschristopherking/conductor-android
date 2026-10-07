@@ -116,7 +116,7 @@ class WorkspacesViewModel(
             repository.archiveWorkspace(workspace.id)
             state.update { it.withArchived(workspace) }
         } catch (exception: ApiException) {
-            state.update { it.copy(archivingIds = it.archivingIds - workspace.id, snackbarMessage = "Could not archive ${workspace.name}. ${exception.message}") }
+            state.update { it.copy(archivingIds = it.archivingIds - workspace.id, snackbarMessage = "Could not archive \"${workspace.name}\". ${exception.message}") }
         }
     }
 

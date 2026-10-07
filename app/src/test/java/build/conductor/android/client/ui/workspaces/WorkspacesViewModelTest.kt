@@ -142,7 +142,7 @@ class WorkspacesViewModelTest {
 
         assertEquals(emptySet<String>(), viewModel.uiState.value.archivingIds)
         assertEquals(listOf("alpha", "beta"), loadedIds(viewModel))
-        assertEquals("Could not archive Alpha. down", viewModel.uiState.value.snackbarMessage)
+        assertEquals("Could not archive \"Alpha\". down", viewModel.uiState.value.snackbarMessage)
     }
 
     @Test
