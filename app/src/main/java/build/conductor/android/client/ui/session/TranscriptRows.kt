@@ -38,6 +38,7 @@ fun TranscriptRow(item: TranscriptItem) {
         is TranscriptItem.ToolCall -> ToolCallRow(item)
         is TranscriptItem.ToolResult -> CollapsibleText(item.output.ifBlank { "(no output)" }, isError = item.isError, isMonospace = true)
         is TranscriptItem.TurnEnd -> TurnEndRow(item)
+        is TranscriptItem.Questions -> ClosedQuestionsCard(item)
         is TranscriptItem.Notice -> CollapsibleText(item.text, isError = false, isMonospace = false)
     }
 }

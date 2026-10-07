@@ -49,6 +49,17 @@ class FakeConductorRepository : ConductorRepository {
     fun addAgentText(text: String) =
         addMessage("agent", """{"type":"agent","rawPayload":{"type":"assistant","message":{"content":[{"type":"text","text":"$text"}]}}}""")
 
+    fun addQuestion(toolUseId: String) = addMessage(
+        "agent",
+        """{"type":"agent","rawPayload":{"type":"assistant","message":{"content":[{"type":"tool_use","id":"$toolUseId","name":"mcp__conductor__AskUserQuestion",""" +
+            """"input":{"questions":[{"question":"Which colour?","options":["Red","Green"]},{"question":"Which sizes?","multiSelect":true,"options":["Small","Large"]}]}}]}}}""",
+    )
+
+    fun addToolResult(toolUseId: String, text: String) = addMessage(
+        "agent",
+        """{"type":"agent","rawPayload":{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"$toolUseId","content":[{"type":"text","text":"$text"}]}]}}}""",
+    )
+
     fun addTurnEnd() = addMessage("agent", """{"type":"agent","rawPayload":{"type":"result","subtype":"success","is_error":false}}""")
 
     private fun addMessage(type: String, content: String) {

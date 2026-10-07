@@ -9,8 +9,13 @@ import build.conductor.android.client.data.api.Message
 import build.conductor.android.client.data.settings.StarredSessions
 import build.conductor.android.client.data.api.SessionStatus
 import build.conductor.android.client.data.transcript.Delivery
+import build.conductor.android.client.data.transcript.Question
+import build.conductor.android.client.data.transcript.QuestionAnswer
 import build.conductor.android.client.data.transcript.TranscriptItem
 import build.conductor.android.client.data.transcript.TranscriptParser
+import build.conductor.android.client.data.transcript.attachQuestionResults
+import build.conductor.android.client.data.transcript.findOpenQuestion
+import build.conductor.android.client.data.transcript.formatAnswers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
@@ -41,6 +46,10 @@ data class SessionUiState(
     val isPolling: Boolean = false,
     val connectionProblem: String? = null,
     val isStarred: Boolean = false,
+    /** A question that the agent waits on; the API still reports the status as working. */
+    val openQuestion: TranscriptItem.Questions? = null,
+    /** One answer for each question in [openQuestion]. */
+    val questionAnswers: List<QuestionAnswer> = emptyList(),
 )
 
 sealed interface SessionEvent {
@@ -65,6 +74,9 @@ class SessionViewModel(
 
     private val transcript = TranscriptBuffer()
     private val pendingPrompts = mutableListOf<PendingPrompt>()
+
+    /** Questions whose answers the app sent; the form closes before the agent's tool result arrives. */
+    private val answeredQuestionIds = mutableSetOf<String>()
 
     /** The text and id of a prompt whose send failed; a resend of the same text reuses the id, so the server can drop a duplicate. */
     private var unsentPrompt: Pair<String, String>? = null
@@ -132,15 +144,40 @@ class SessionViewModel(
     fun send() {
         val text = state.value.draft.trim()
         if (text.isEmpty() || state.value.isSending) return
+        state.update { it.copy(draft = "") }
+        submitPrompt(text, onFailure = { state.update { it.copy(draft = it.draft.ifEmpty { text }) } })
+    }
+
+    fun toggleOption(questionIndex: Int, label: String) = updateAnswer(questionIndex) { answer, question -> answer.withToggled(label, question) }
+
+    fun onOtherTextChange(questionIndex: Int, text: String) = updateAnswer(questionIndex) { answer, question -> answer.withOtherText(text, question) }
+
+    /** Sends the chosen answers as one message. A message closes Conductor's question form, and the agent reads the answers from it. */
+    fun sendAnswers() {
+        val question = state.value.openQuestion ?: return
+        val answers = state.value.questionAnswers
+        if (answers.none { it.isAnswered } || state.value.isSending) return
+        answeredQuestionIds += question.toolUseId
+        submitPrompt(formatAnswers(question.questions, answers), onFailure = { answeredQuestionIds -= question.toolUseId })
+    }
+
+    private fun updateAnswer(questionIndex: Int, change: (QuestionAnswer, Question) -> QuestionAnswer) {
+        val question = state.value.openQuestion?.questions?.getOrNull(questionIndex) ?: return
+        state.update { current ->
+            current.copy(questionAnswers = current.questionAnswers.mapIndexed { index, answer -> if (index == questionIndex) change(answer, question) else answer })
+        }
+    }
+
+    private fun submitPrompt(text: String, onFailure: () -> Unit) {
         val messageId = unsentPrompt?.takeIf { it.first == text }?.second ?: newMessageId()
         val prompt = TranscriptItem.UserPrompt("pending-$messageId", text, Delivery.SENDING, messageId)
         pendingPrompts += PendingPrompt(prompt, transcript.items.size)
-        state.update { it.copy(draft = "", isSending = true) }
+        state.update { it.copy(isSending = true) }
         publishItems()
-        viewModelScope.launch { deliver(text, messageId) }
+        viewModelScope.launch { deliver(text, messageId, onFailure) }
     }
 
-    private suspend fun deliver(text: String, messageId: String) {
+    private suspend fun deliver(text: String, messageId: String, onFailure: () -> Unit) {
         try {
             val sent = repository.sendMessage(sessionId, text, messageId)
             unsentPrompt = null
@@ -152,7 +189,7 @@ class SessionViewModel(
         } catch (exception: ApiException) {
             unsentPrompt = text to messageId
             pendingPrompts.removeAll { it.prompt.clientMessageId == messageId }
-            state.update { it.copy(draft = it.draft.ifEmpty { text }) }
+            onFailure()
             events.send(SessionEvent.ShowMessage(exception.message ?: "The message was not sent."))
         }
         state.update { it.copy(isSending = false) }
@@ -268,7 +305,22 @@ class SessionViewModel(
     }
 
     private fun publishItems() {
-        state.update { it.copy(items = transcript.items + pendingPrompts.map { it.prompt }) }
+        val items = attachQuestionResults(transcript.items)
+        val openQuestion = findOpenQuestion(items)?.takeIf { state.value.status == AgentStatus.WORKING && it.toolUseId !in answeredQuestionIds }
+        state.update { current ->
+            current.copy(
+                items = items + pendingPrompts.map { it.prompt },
+                openQuestion = openQuestion,
+                questionAnswers = answersFor(openQuestion, current),
+            )
+        }
+    }
+
+    /** Keeps the user's choices while the same question stays open. */
+    private fun answersFor(question: TranscriptItem.Questions?, current: SessionUiState): List<QuestionAnswer> = when {
+        question == null -> emptyList()
+        current.openQuestion?.toolUseId == question.toolUseId -> current.questionAnswers
+        else -> List(question.questions.size) { QuestionAnswer() }
     }
 
     private companion object {

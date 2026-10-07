@@ -24,7 +24,15 @@ sealed interface TranscriptItem {
 
     data class ToolCall(override val key: String, val toolName: String, val summary: String) : TranscriptItem
 
-    data class ToolResult(override val key: String, val output: String, val isError: Boolean) : TranscriptItem
+    data class ToolResult(override val key: String, val output: String, val isError: Boolean, val toolUseId: String? = null) : TranscriptItem
+
+    /** An AskUserQuestion call. [result] is the text of its tool result, once that arrives. */
+    data class Questions(
+        override val key: String,
+        val toolUseId: String,
+        val questions: List<Question>,
+        val result: String? = null,
+    ) : TranscriptItem
 
     data class TurnEnd(
         override val key: String,
@@ -81,13 +89,39 @@ object TranscriptParser {
 
     private fun parseAssistantBlock(key: String, block: JsonObject): TranscriptItem? = when (block.string("type")) {
         "text" -> block.string("text")?.takeIf { it.isNotBlank() }?.let { TranscriptItem.AssistantText(key, it) }
-        "tool_use" -> TranscriptItem.ToolCall(key, block.string("name") ?: "Tool", summarizeToolInput(block.obj("input")))
+        "tool_use" -> parseQuestions(key, block) ?: TranscriptItem.ToolCall(key, block.string("name") ?: "Tool", summarizeToolInput(block.obj("input")))
         else -> null
     }
 
     private fun parseUserBlock(key: String, block: JsonObject): TranscriptItem? = when (block.string("type")) {
-        "tool_result" -> TranscriptItem.ToolResult(key, textOf(block["content"]).take(MAX_TOOL_OUTPUT), block.boolean("is_error") == true)
+        "tool_result" -> TranscriptItem.ToolResult(
+            key = key,
+            output = textOf(block["content"]).take(MAX_TOOL_OUTPUT),
+            isError = block.boolean("is_error") == true,
+            toolUseId = block.string("tool_use_id"),
+        )
         "text" -> block.string("text")?.takeIf { it.isNotBlank() }?.let { TranscriptItem.Notice(key, it) }
+        else -> null
+    }
+
+    /** Conductor's MCP tool is `mcp__conductor__AskUserQuestion`; the suffix also matches the agent's own tool. */
+    private fun parseQuestions(key: String, block: JsonObject): TranscriptItem.Questions? {
+        if (block.string("name")?.endsWith(ASK_USER_QUESTION) != true) return null
+        val toolUseId = block.string("id") ?: return null
+        val questions = (block.obj("input")?.get("questions") as? JsonArray)?.mapNotNull { (it as? JsonObject)?.let(::parseQuestion) }
+        return questions?.takeIf { it.isNotEmpty() }?.let { TranscriptItem.Questions(key, toolUseId, it) }
+    }
+
+    private fun parseQuestion(question: JsonObject): Question? {
+        val text = question.string("question") ?: return null
+        val options = (question["options"] as? JsonArray)?.mapNotNull(::parseOption).orEmpty()
+        return Question(question.string("header"), text, options, isMultiSelect = question.boolean("multiSelect") == true)
+    }
+
+    /** The agent sends an option as a plain label or as an object with a label and a description. */
+    private fun parseOption(option: JsonElement): QuestionOption? = when (option) {
+        is JsonPrimitive -> option.contentOrNull()?.let { QuestionOption(it, null) }
+        is JsonObject -> option.string("label")?.let { QuestionOption(it, option.string("description")) }
         else -> null
     }
 
@@ -114,6 +148,7 @@ object TranscriptParser {
     }
 
     private const val USER_MESSAGE = "userMessage"
+    private const val ASK_USER_QUESTION = "AskUserQuestion"
     private const val AGENT = "agent"
     private const val MAX_SUMMARY = 160
     private const val MAX_TOOL_OUTPUT = 4_000
