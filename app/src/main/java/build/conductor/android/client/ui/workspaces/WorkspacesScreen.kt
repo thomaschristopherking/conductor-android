@@ -1,13 +1,16 @@
 package build.conductor.android.client.ui.workspaces
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -23,10 +26,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -35,9 +42,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import build.conductor.android.client.R
 import build.conductor.android.client.data.WorkspaceState
 import build.conductor.android.client.data.api.Workspace
 import build.conductor.android.client.ui.components.EmptyView
@@ -61,6 +73,7 @@ fun WorkspacesScreen(
     LaunchedEffect(state.snackbarMessage) {
         state.snackbarMessage?.let { snackbarHostState.showSnackbar(it); viewModel.onSnackbarShown() }
     }
+    UndoArchiveSnackbar(state.undoableArchive, snackbarHostState, viewModel)
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -90,32 +103,80 @@ fun WorkspacesScreen(
                 when (val workspaces = state.workspaces) {
                     LoadState.Loading -> LoadingView()
                     is LoadState.Failed -> ErrorView(workspaces.message, viewModel::load)
-                    is LoadState.Loaded -> WorkspaceList(workspaces.value, state, onOpenWorkspace, viewModel::loadMore)
+                    is LoadState.Loaded -> WorkspaceList(workspaces.value, state, WorkspaceActions(onOpenWorkspace, viewModel::archive, viewModel::loadMore))
                 }
             }
         }
     }
 }
 
+/** Shows "Undo" while the undo window is open. The snackbar closes when the view model closes the window. */
 @Composable
-private fun WorkspaceList(
-    workspaces: List<Workspace>,
-    state: WorkspacesUiState,
-    onOpenWorkspace: (Workspace) -> Unit,
-    onLoadMore: () -> Unit,
-) {
-    if (workspaces.isEmpty()) {
+private fun UndoArchiveSnackbar(workspace: Workspace?, snackbarHostState: SnackbarHostState, viewModel: WorkspacesViewModel) {
+    LaunchedEffect(workspace?.id) {
+        if (workspace == null) return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar("Archived ${workspace.name}", actionLabel = "Undo", duration = SnackbarDuration.Indefinite)
+        when (result) {
+            SnackbarResult.ActionPerformed -> viewModel.undoArchive()
+            SnackbarResult.Dismissed -> viewModel.confirmArchive()
+        }
+    }
+}
+
+private class WorkspaceActions(
+    val onOpen: (Workspace) -> Unit,
+    val onArchive: (Workspace) -> Unit,
+    val onLoadMore: () -> Unit,
+)
+
+@Composable
+private fun WorkspaceList(workspaces: List<Workspace>, state: WorkspacesUiState, actions: WorkspaceActions) {
+    val visibleWorkspaces = workspaces.filterNot { it.id in state.archivingIds }
+    if (visibleWorkspaces.isEmpty()) {
         EmptyView("No workspaces", "Tap New workspace to start one in the cloud.")
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(workspaces, key = { it.id }) { workspace ->
-            WorkspaceRow(workspace, onClick = { onOpenWorkspace(workspace) })
-            HorizontalDivider()
+        items(visibleWorkspaces, key = { it.id }) { workspace ->
+            Column(modifier = Modifier.animateItem()) {
+                SwipeToArchiveRow(workspace, onClick = { actions.onOpen(workspace) }, onArchive = { actions.onArchive(workspace) })
+                HorizontalDivider()
+            }
         }
         if (state.hasMore || state.loadMoreError != null) {
-            item(key = "load-more") { LoadMoreRow(state, onLoadMore) }
+            item(key = "load-more") { LoadMoreRow(state, actions.onLoadMore) }
         }
+    }
+}
+
+/** A swipe towards the start archives the workspace. Screen readers get the same action from the actions menu. */
+@Composable
+private fun SwipeToArchiveRow(workspace: Workspace, onClick: () -> Unit, onArchive: () -> Unit) {
+    val isArchivable = WorkspaceState.from(workspace.state) != WorkspaceState.ARCHIVED
+    SwipeToDismissBox(
+        state = rememberSwipeToDismissBoxState(),
+        backgroundContent = { ArchiveSwipeBackground() },
+        modifier = Modifier.semantics {
+            if (isArchivable) customActions = listOf(CustomAccessibilityAction("Archive") { onArchive(); true })
+        },
+        enableDismissFromStartToEnd = false,
+        gesturesEnabled = isArchivable,
+        onDismiss = { onArchive() },
+    ) {
+        WorkspaceRow(workspace, onClick)
+    }
+}
+
+@Composable
+private fun ArchiveSwipeBackground() {
+    Row(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Archive", color = MaterialTheme.colorScheme.onSecondaryContainer, style = MaterialTheme.typography.labelLarge)
+        Spacer(modifier = Modifier.width(8.dp))
+        Icon(painterResource(R.drawable.ic_archive), contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
     }
 }
 

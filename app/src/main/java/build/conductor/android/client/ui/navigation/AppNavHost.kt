@@ -68,7 +68,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
         composable<WorkspacesRoute> { entry ->
             val route = entry.toRoute<WorkspacesRoute>()
             WorkspacesScreen(
-                viewModel = viewModel { WorkspacesViewModel(container.repository, route.projectId) },
+                viewModel = viewModel { WorkspacesViewModel(container.repository, route.projectId, container.applicationScope) },
                 projectName = route.projectName,
                 onOpenWorkspace = { navController.navigate(WorkspaceRoute(it.id)) },
                 onCreateWorkspace = { navController.navigate(CreateWorkspaceRoute(route.projectId, route.projectName)) },
