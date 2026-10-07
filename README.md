@@ -14,6 +14,7 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
 - **New workspace.** Name, branch, agent, model, effort and a first prompt. Your favourite models from the Conductor app are shortcuts.
 - **Workspace detail.** The sessions of a workspace, each with its agent status. Create a session, rename the workspace, archive the workspace, or copy and share its Conductor link.
 - **Session.** The transcript as a chat, with markdown and code blocks. A composer at the bottom moves up with the keyboard. "Stop" cancels the agent's turn.
+  - When the agent asks you a question, the chat shows the question with its options. Choose the options, or type in "Other", then tap "Send answers".
   - While the agent works, the app polls every 3 seconds for new messages only.
   - The badge shows "Working", "Waiting for you" (the API status `idle`) or "Error".
 - **Notifications (optional).** Tap the star on a session. The app checks starred sessions every 15 minutes. It notifies you when an agent stops working.
@@ -99,6 +100,7 @@ I made these decisions without a person to ask.
 14. **Deep links.** Android cannot open `conductor://` links. "Open in Conductor" copies or shares the link, so you can open it on a computer.
 15. **Backup.** App data is not backed up. A restored key cannot be decrypted without the Keystore key.
 16. **Scope of actions.** Rename and archive apply to workspaces, as the task describes. The app does not rename or archive sessions, and it does not show archived sessions.
+17. **Answers to questions.** The public API cannot answer Conductor's question form. The app sends your answers as one message. The message closes the form, and the agent reads the answers from the message. See `docs/API_NOTES.md`.
 
 ## Known limitations
 
@@ -109,6 +111,8 @@ I made these decisions without a person to ask.
 - **Debug build only.** The APK is signed with the debug key.
 - **Background checks.** Android runs periodic work at most every 15 minutes, and it can delay the work to save battery. The session screen records each status that it sees, so a short turn that you start from the app is caught. A turn that starts and ends between two checks while the app is closed is not caught.
 - **Code blocks.** Code blocks have no syntax colours.
+- **Questions outside the session screen.** The session list and the notifications use the agent status. That status stays "working" while a question waits, so only the session screen shows the question.
+- **Codex questions.** I tested questions from Claude sessions only.
 
 ## Contributing
 

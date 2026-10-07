@@ -51,7 +51,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import build.conductor.android.client.data.AgentStatus
+import build.conductor.android.client.data.transcript.TranscriptItem
 import build.conductor.android.client.ui.components.AgentStatusBadge
+import build.conductor.android.client.ui.components.BadgeTone
+import build.conductor.android.client.ui.components.StatusBadge
 import build.conductor.android.client.ui.components.EmptyView
 import build.conductor.android.client.ui.components.ErrorView
 import build.conductor.android.client.ui.components.LoadingView
@@ -115,7 +118,7 @@ private fun SessionBody(state: SessionUiState, viewModel: SessionViewModel, padd
                 state.isLoading && state.items.isEmpty() -> LoadingView()
                 state.loadError != null -> ErrorView(state.loadError, viewModel::load)
                 state.items.isEmpty() -> EmptyView("No messages yet", "Send a prompt to start the agent.")
-                else -> Transcript(state)
+                else -> Transcript(state, viewModel)
             }
         }
         HorizontalDivider()
@@ -130,8 +133,12 @@ private fun StatusBar(state: SessionUiState, onCancel: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        AgentStatusBadge(state.status)
-        if (state.status == AgentStatus.WORKING) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+        if (state.openQuestion != null) {
+            StatusBadge("Question for you", BadgeTone.POSITIVE)
+        } else {
+            AgentStatusBadge(state.status)
+        }
+        if (state.status == AgentStatus.WORKING && state.openQuestion == null) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
         Text(
             text = statusDescription(state),
             style = MaterialTheme.typography.bodySmall,
@@ -145,7 +152,12 @@ private fun StatusBar(state: SessionUiState, onCancel: () -> Unit) {
     }
 }
 
-private fun statusDescription(state: SessionUiState): String = when (state.status) {
+private fun statusDescription(state: SessionUiState): String = when {
+    state.openQuestion != null -> "The agent waits for your answer below."
+    else -> agentStatusDescription(state)
+}
+
+private fun agentStatusDescription(state: SessionUiState): String = when (state.status) {
     AgentStatus.WORKING -> "The agent is working."
     AgentStatus.IDLE -> "The agent is waiting for you."
     AgentStatus.ERROR -> state.statusError ?: "The agent stopped with an error."
@@ -160,7 +172,7 @@ private fun ConnectionBanner(message: String) {
 }
 
 @Composable
-private fun Transcript(state: SessionUiState) {
+private fun Transcript(state: SessionUiState, viewModel: SessionViewModel) {
     val listState = rememberLazyListState()
     LaunchedEffect(state.items.size) {
         val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
@@ -173,9 +185,23 @@ private fun Transcript(state: SessionUiState) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        items(state.items, key = { it.key }) { TranscriptRow(it) }
+        items(state.items, key = { it.key }) { item ->
+            if (item is TranscriptItem.Questions && item.toolUseId == state.openQuestion?.toolUseId) {
+                OpenQuestionsCard(item, questionForm(state, viewModel))
+            } else {
+                TranscriptRow(item)
+            }
+        }
     }
 }
+
+private fun questionForm(state: SessionUiState, viewModel: SessionViewModel) = QuestionForm(
+    answers = state.questionAnswers,
+    isSending = state.isSending,
+    onToggle = viewModel::toggleOption,
+    onOtherTextChange = viewModel::onOtherTextChange,
+    onSend = viewModel::sendAnswers,
+)
 
 @Composable
 private fun Composer(state: SessionUiState, onDraftChange: (String) -> Unit, onSend: () -> Unit) {
@@ -187,7 +213,7 @@ private fun Composer(state: SessionUiState, onDraftChange: (String) -> Unit, onS
         OutlinedTextField(
             value = state.draft,
             onValueChange = onDraftChange,
-            placeholder = { Text(if (state.status == AgentStatus.WORKING) "Steer the agent…" else "Message the agent…") },
+            placeholder = { Text(composerPlaceholder(state)) },
             maxLines = COMPOSER_MAX_LINES,
             modifier = Modifier.weight(1f),
         )
@@ -195,6 +221,12 @@ private fun Composer(state: SessionUiState, onDraftChange: (String) -> Unit, onS
             Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
         }
     }
+}
+
+private fun composerPlaceholder(state: SessionUiState): String = when {
+    state.openQuestion != null -> "Or answer in your own words…"
+    state.status == AgentStatus.WORKING -> "Steer the agent…"
+    else -> "Message the agent…"
 }
 
 private const val AUTO_SCROLL_THRESHOLD = 3

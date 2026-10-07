@@ -1,0 +1,283 @@
+{
+ "data": [
+  {
+   "id": "00000000-0000-4000-8000-000000000006",
+   "sessionId": "00000000-0000-4000-8000-000000000005",
+   "sessionIndex": 1,
+   "type": "userMessage",
+   "content": {
+    "eventId": "00000000-0000-4000-8000-000000000006",
+    "type": "userMessage",
+    "id": "00000000-0000-4000-8000-000000000003",
+    "message": "Do not read or change any files and do not run any commands. Step 1: call the mcp__conductor__AskUserQuestion tool exactly once, with two questions. Question 1: header 'Colour', question 'Which colour?', options 'Red' and 'Green'. Question 2: header 'Size', question 'Which sizes?', multiSelect true, options 'Small', 'Medium' and 'Large'. Step 2: after the tool returns, look at everything you received from the user, including any later user message. Reply with one line in this exact form: RESULT colour=<colour or none> sizes=<sizes or none> toolResult=<first 60 characters of the tool result>. Then stop.",
+    "state": "sent",
+    "turnId": "00000000-0000-4000-8000-000000000003"
+   },
+   "receivedAt": "2026-10-07T11:32:59.786Z"
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000007",
+   "sessionId": "00000000-0000-4000-8000-000000000005",
+   "sessionIndex": 11,
+   "type": "agent",
+   "content": {
+    "eventId": "00000000-0000-4000-8000-000000000007",
+    "type": "agent",
+    "rawPayload": {
+     "type": "assistant",
+     "message": {
+      "model": "claude-sonnet-5-5",
+      "id": "msg_fixture",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+       {
+        "type": "tool_use",
+        "id": "toolu_017F5j1aQPTTqDQuaxj295UV",
+        "name": "mcp__conductor__AskUserQuestion",
+        "input": {
+         "questions": [
+          {
+           "header": "Colour",
+           "question": "Which colour?",
+           "options": [
+            "Red",
+            "Green"
+           ]
+          },
+          {
+           "header": "Size",
+           "question": "Which sizes?",
+           "multiSelect": true,
+           "options": [
+            "Small",
+            "Medium",
+            "Large"
+           ]
+          }
+         ]
+        },
+        "caller": {
+         "type": "direct"
+        }
+       }
+      ],
+      "container": null,
+      "stop_reason": null,
+      "stop_sequence": null,
+      "stop_details": null,
+      "input_transformations": []
+     },
+     "parent_tool_use_id": null,
+     "session_id": "00000000-0000-4000-8000-000000000005",
+     "timestamp": "2026-10-07T11:33:01.741Z",
+     "tool_use_meta": [
+      {
+       "id": "toolu_017F5j1aQPTTqDQuaxj295UV",
+       "display_name": "AskUserQuestion",
+       "server_display_name": "conductor"
+      }
+     ],
+     "user_message_uuid": "00000000-0000-4000-8000-000000000010",
+     "user_message_uuids": [
+      "00000000-0000-4000-8000-000000000010"
+     ]
+    },
+    "userMessageId": "00000000-0000-4000-8000-000000000003",
+    "turnId": "00000000-0000-4000-8000-000000000003"
+   },
+   "receivedAt": "2026-10-07T11:33:01.802Z"
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000000",
+   "sessionId": "00000000-0000-4000-8000-000000000005",
+   "sessionIndex": 12,
+   "type": "agent",
+   "content": {
+    "eventId": "00000000-0000-4000-8000-000000000000",
+    "type": "agent",
+    "rawPayload": {
+     "type": "tool_progress",
+     "tool_use_id": "toolu_017F5j1aQPTTqDQuaxj295UV-heartbeat-0",
+     "tool_name": "mcp__conductor__AskUserQuestion",
+     "parent_tool_use_id": "toolu_017F5j1aQPTTqDQuaxj295UV",
+     "elapsed_time_seconds": 30,
+     "heartbeat": true,
+     "session_id": "00000000-0000-4000-8000-000000000005"
+    },
+    "userMessageId": "00000000-0000-4000-8000-000000000003",
+    "turnId": "00000000-0000-4000-8000-000000000003"
+   },
+   "receivedAt": "2026-10-07T11:33:31.927Z"
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000008",
+   "sessionId": "00000000-0000-4000-8000-000000000005",
+   "sessionIndex": 13,
+   "type": "userMessage",
+   "content": {
+    "eventId": "00000000-0000-4000-8000-000000000008",
+    "type": "userMessage",
+    "id": "00000000-0000-4000-8000-000000000011",
+    "message": "My answers to your questions:\n1. Which colour?\n   Green\n2. Which sizes?\n   Small, Large",
+    "state": "sent",
+    "turnId": "00000000-0000-4000-8000-000000000003"
+   },
+   "receivedAt": "2026-10-07T11:33:44.406Z"
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000004",
+   "sessionId": "00000000-0000-4000-8000-000000000005",
+   "sessionIndex": 15,
+   "type": "agent",
+   "content": {
+    "eventId": "00000000-0000-4000-8000-000000000004",
+    "type": "agent",
+    "rawPayload": {
+     "type": "user",
+     "message": {
+      "role": "user",
+      "content": [
+       {
+        "tool_use_id": "toolu_017F5j1aQPTTqDQuaxj295UV",
+        "type": "tool_result",
+        "content": [
+         {
+          "type": "text",
+          "text": "User cancelled the question. Please continue without this information or ask in a different way.\nError code: CONDUCTOR_ASK_USER_QUESTION_USER_CANCELLED\nRetryable: no\nSuggested action: Continue without this information or ask in a normal message if it is still necessary."
+         }
+        ]
+       }
+      ]
+     },
+     "parent_tool_use_id": null,
+     "session_id": "00000000-0000-4000-8000-000000000005",
+     "timestamp": "2026-10-07T11:33:43.598Z",
+     "tool_use_result": [
+      {
+       "type": "text",
+       "text": "User cancelled the question. Please continue without this information or ask in a different way.\nError code: CONDUCTOR_ASK_USER_QUESTION_USER_CANCELLED\nRetryable: no\nSuggested action: Continue without this information or ask in a normal message if it is still necessary."
+      }
+     ]
+    },
+    "userMessageId": "00000000-0000-4000-8000-000000000003",
+    "turnId": "00000000-0000-4000-8000-000000000003"
+   },
+   "receivedAt": "2026-10-07T11:33:44.406Z"
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000009",
+   "sessionId": "00000000-0000-4000-8000-000000000005",
+   "sessionIndex": 17,
+   "type": "agent",
+   "content": {
+    "eventId": "00000000-0000-4000-8000-000000000009",
+    "type": "agent",
+    "rawPayload": {
+     "type": "assistant",
+     "message": {
+      "model": "claude-sonnet-5-5",
+      "id": "msg_fixture",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+       {
+        "type": "text",
+        "text": "RESULT colour=Green sizes=Small, Large toolResult=User cancelled the question. Please continue without this inf"
+       }
+      ],
+      "container": null,
+      "stop_reason": null,
+      "stop_sequence": null,
+      "stop_details": null,
+      "input_transformations": []
+     },
+     "parent_tool_use_id": null,
+     "session_id": "00000000-0000-4000-8000-000000000005",
+     "timestamp": "2026-10-07T11:33:45.949Z"
+    },
+    "userMessageId": "00000000-0000-4000-8000-000000000003",
+    "turnId": "00000000-0000-4000-8000-000000000003"
+   },
+   "receivedAt": "2026-10-07T11:33:46.214Z"
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000001",
+   "sessionId": "00000000-0000-4000-8000-000000000005",
+   "sessionIndex": 19,
+   "type": "agent",
+   "content": {
+    "eventId": "00000000-0000-4000-8000-000000000001",
+    "type": "agent",
+    "rawPayload": {
+     "duration_api_ms": 4639,
+     "stop_reason": "end_turn",
+     "session_id": "00000000-0000-4000-8000-000000000005",
+     "total_cost_usd": 0.0811682,
+     "terminal_reason": "completed",
+     "fast_mode_disabled_reason": "sdk_opt_in_required",
+     "subagent_stats": {
+      "spawned": 0,
+      "requested": {
+       "background": 0,
+       "foreground": 0,
+       "unset": 0
+      },
+      "started_in_background": 0,
+      "max_depth": 0,
+      "spawned_by_subagents": 0,
+      "completed": 0,
+      "failed": 0,
+      "killed": {
+       "parent": 0,
+       "user": 0,
+       "system": 0
+      },
+      "refused": {
+       "depth_limit": 0,
+       "concurrency_limit": 0,
+       "budget": 0
+      },
+      "by_type": {}
+     },
+     "is_error": false,
+     "num_turns": 2,
+     "subtype": "success",
+     "api_error_status": null,
+     "result": "RESULT colour=Green sizes=Small, Large toolResult=User cancelled the question. Please continue without this inf",
+     "ttft_ms": 1886,
+     "type": "result",
+     "duration_ms": 46115,
+     "ttft_stream_ms": 1102,
+     "time_to_request_ms": 138,
+     "first_content_frame_ms": 1102,
+     "user_message_uuid": "00000000-0000-4000-8000-000000000010",
+     "user_message_uuids": [
+      "00000000-0000-4000-8000-000000000010",
+      "00000000-0000-4000-8000-000000000002"
+     ],
+     "request_sent_wall_ms": 1791372779993,
+     "first_request_input_tokens": 28080,
+     "queued_turn_count": 0,
+     "result_index": 0,
+     "conductor_sdk_metadata": {
+      "requestedModel": "sonnet-5-5-1m",
+      "requestedReasoningEffort": "low",
+      "requestedFastMode": false,
+      "requestedThinkingLevel": "low",
+      "model": "claude-sonnet-5-5[1m]",
+      "serviceTier": "standard",
+      "speed": "standard",
+      "isForeignResult": false,
+      "marginalCostUsd": 0.0811682
+     }
+    },
+    "userMessageId": "00000000-0000-4000-8000-000000000003",
+    "turnId": "00000000-0000-4000-8000-000000000003"
+   },
+   "receivedAt": "2026-10-07T11:33:46.506Z"
+  }
+ ],
+ "offset": 0,
+ "hasMore": false
+}

@@ -94,6 +94,20 @@ Values of `rawPayload.type` seen in the live API:
 
 The account that I used has no Codex or Cursor sessions. The app shows an unknown event as a short grey line when it has text, and hides it when it has no text.
 
+## Questions from the agent
+
+An agent asks the user a question with Conductor's MCP tool, `mcp__conductor__AskUserQuestion`. I checked this section on 2026-10-07 against 3 questions in older live sessions and one test session.
+
+- The question is a normal `tool_use` block. `input.questions` holds one object for each question: `question`, an optional `header`, an optional `multiSelect`, and `options`.
+- An option is a plain string, or an object with `label` and an optional `description`. The live API sends both forms.
+- While the question waits, the transcript gets a `tool_progress` event every 30 seconds with `"heartbeat": true`. These events have a `parent_tool_use_id`.
+- The status endpoint reports `working` while the question waits. Nothing in the status shows the question.
+- The public API has no endpoint to answer the question form. The desktop app answers through an internal call, not through `/v0`.
+- A message from `POST /v0/sessions/{id}/messages` closes the open question. The tool result is then `User cancelled the question. ... Error code: CONDUCTOR_ASK_USER_QUESTION_USER_CANCELLED`. The agent reads the message in the same turn.
+- In the test, the message was `My answers to your questions:` and one numbered line for each question. The agent replied with the chosen answers.
+- An answer in the desktop app gives the tool result `User responses:` and one numbered line for each question.
+- `POST /v0/sessions/{id}/cancel` also closes the question, but it drops queued messages. To answer, send a message. Do not cancel first.
+
 ## Create a workspace
 
 `POST /v0/workspaces` takes one of two bodies:

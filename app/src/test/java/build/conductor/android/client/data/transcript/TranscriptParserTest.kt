@@ -8,6 +8,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -29,6 +30,44 @@ class TranscriptParserTest {
         val systemMessages = messages.filter { it.content.toString().contains("\"type\":\"system\"") }
         assertTrue(systemMessages.isNotEmpty())
         assertTrue(systemMessages.all { TranscriptParser.parse(it).isEmpty() })
+    }
+
+    @Test
+    fun `an AskUserQuestion call becomes a question card, and its result keeps the call id`() {
+        val items = TranscriptParser.parse(fixtureMessages("messages_question.json"))
+
+        val card = items.filterIsInstance<TranscriptItem.Questions>().single()
+        assertEquals(listOf("Which colour?", "Which sizes?"), card.questions.map { it.text })
+        assertEquals(listOf("Colour", "Size"), card.questions.map { it.header })
+        assertEquals(listOf("Red", "Green"), card.questions[0].options.map { it.label })
+        assertFalse(card.questions[0].isMultiSelect)
+        assertTrue(card.questions[1].isMultiSelect)
+        val result = items.filterIsInstance<TranscriptItem.ToolResult>().single()
+        assertEquals(card.toolUseId, result.toolUseId)
+        assertTrue(items.none { it is TranscriptItem.ToolCall })
+    }
+
+    @Test
+    fun `question options can be objects with a description`() {
+        val items = TranscriptParser.parse(
+            agent(
+                """{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"mcp__conductor__AskUserQuestion",
+                "input":{"questions":[{"question":"Which engine?","options":[{"label":"PostgreSQL","description":"One schema."},{"label":"SQLite"}]}]}}]}}""".trimIndent(),
+            ),
+        )
+
+        val question = (items.single() as TranscriptItem.Questions).questions.single()
+        assertEquals(listOf(QuestionOption("PostgreSQL", "One schema."), QuestionOption("SQLite", null)), question.options)
+        assertNull(question.header)
+    }
+
+    @Test
+    fun `an AskUserQuestion call without questions stays a tool call`() {
+        val items = TranscriptParser.parse(
+            agent("""{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"AskUserQuestion","input":{}}]}}"""),
+        )
+
+        assertTrue(items.single() is TranscriptItem.ToolCall)
     }
 
     @Test
