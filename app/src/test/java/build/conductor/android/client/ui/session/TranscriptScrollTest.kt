@@ -60,7 +60,7 @@ class TranscriptScrollTest {
 
         val listBottom = composeRule.onNode(hasScrollToIndexAction()).getUnclippedBoundsInRoot().bottom
         val rowBottom = composeRule.onNodeWithText("Line 79", substring = true).getUnclippedBoundsInRoot().bottom
-        assertEquals((listBottom - LIST_PADDING - ROW_PADDING).value, rowBottom.value, 1f)
+        assertEquals((listBottom - LIST_PADDING - COPY_BUTTON_HEIGHT - ROW_PADDING).value, rowBottom.value, 1f)
     }
 
     @Test
@@ -125,6 +125,7 @@ class TranscriptScrollTest {
         const val JUMP_BUTTON = "Scroll to the newest message"
         val LIST_PADDING = 16.dp
         val ROW_PADDING = 12.dp
+        val COPY_BUTTON_HEIGHT = 48.dp
 
         fun prompts(count: Int): List<TranscriptItem> = List(count) { prompt(it) }
 

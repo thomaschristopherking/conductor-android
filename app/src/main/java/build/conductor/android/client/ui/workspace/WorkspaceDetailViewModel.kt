@@ -32,6 +32,9 @@ data class SessionRow(val session: Session, val status: AgentStatus, val hasOpen
 
 data class WorkspaceDetail(val workspace: Workspace, val sessions: List<SessionRow>)
 
+val SessionRow.title: String
+    get() = session.name ?: "Untitled session"
+
 data class WorkspaceDetailUiState(
     val detail: LoadState<WorkspaceDetail> = LoadState.Loading,
     val isRefreshing: Boolean = false,
@@ -39,10 +42,11 @@ data class WorkspaceDetailUiState(
     val favorites: List<ModelSelection> = emptyList(),
     val defaultSelection: ModelSelection = ModelCatalog.defaultSelection(emptyList()),
     val snackbarMessage: String? = null,
+    /** The session whose tab is open. */
+    val selectedSessionId: String? = null,
 )
 
 sealed interface WorkspaceEvent {
-    data class OpenSession(val sessionId: String, val title: String) : WorkspaceEvent
     data object Archived : WorkspaceEvent
 }
 
@@ -53,8 +57,9 @@ class WorkspaceDetailViewModel(
     private val repository: ConductorRepository,
     private val workspaceId: String,
     private val openQuestionTracker: OpenQuestionTracker,
+    initialSessionId: String? = null,
 ) : ViewModel() {
-    private val state = MutableStateFlow(WorkspaceDetailUiState())
+    private val state = MutableStateFlow(WorkspaceDetailUiState(selectedSessionId = initialSessionId))
     val uiState: StateFlow<WorkspaceDetailUiState> = state.asStateFlow()
     private val events = Channel<WorkspaceEvent>(Channel.BUFFERED)
     val eventFlow: Flow<WorkspaceEvent> = events.receiveAsFlow()
@@ -74,6 +79,18 @@ class WorkspaceDetailViewModel(
         viewModelScope.launch { fetchDetail() }
     }
 
+    /** Refreshes the session tabs when the screen comes back; the first load is in [init]. */
+    fun onVisible() {
+        if (state.value.detail is LoadState.Loaded) refresh()
+    }
+
+    fun selectSession(sessionId: String) = state.update { it.copy(selectedSessionId = sessionId) }
+
+    /** The open session polls its own status; this keeps its tab up to date between refreshes. */
+    fun recordSessionStatus(sessionId: String, status: AgentStatus, hasOpenQuestion: Boolean) = state.update { current ->
+        current.copy(detail = current.detail.mapDetail { detail -> detail.withRow(sessionId) { it.copy(status = status, hasOpenQuestion = hasOpenQuestion) } })
+    }
+
     private suspend fun fetchDetail() {
         try {
             val detail = coroutineScope {
@@ -81,7 +98,7 @@ class WorkspaceDetailViewModel(
                 val sessions = async { withStatuses(repository.sessions(workspaceId)) }
                 WorkspaceDetail(workspace.await(), sessions.await())
             }
-            state.update { it.copy(detail = LoadState.Loaded(detail), isRefreshing = false) }
+            state.update { it.copy(detail = LoadState.Loaded(detail), isRefreshing = false, selectedSessionId = chooseSession(it.selectedSessionId, detail.sessions)) }
         } catch (exception: ApiException) {
             state.update { it.withFailure(exception) }
         }
@@ -144,7 +161,11 @@ class WorkspaceDetailViewModel(
             message = input.message.trim().ifEmpty { null },
         )
         val session = repository.createSession(request)
-        events.send(WorkspaceEvent.OpenSession(session.id, session.name ?: "New session"))
+        val row = SessionRow(session, if (request.message == null) AgentStatus.IDLE else AgentStatus.WORKING)
+        state.update { current ->
+            current.copy(detail = current.detail.mapDetail { it.copy(sessions = it.sessions + row) }, selectedSessionId = session.id)
+        }
+        fetchDetail()
     }
 
     fun onSnackbarShown() = state.update { it.copy(snackbarMessage = null) }
@@ -172,6 +193,16 @@ class WorkspaceDetailViewModel(
 
 /** A workspace can hold close to 100 sessions; this keeps the status calls from flooding the API. */
 private const val MAX_PARALLEL_STATUS_CALLS = 6
+
+/** Keeps the open tab if it still exists; otherwise opens the session that most needs the user. */
+internal fun chooseSession(selectedSessionId: String?, sessions: List<SessionRow>): String? =
+    sessions.firstOrNull { it.session.id == selectedSessionId }?.session?.id
+        ?: sessions.firstOrNull { it.hasOpenQuestion }?.session?.id
+        ?: sessions.firstOrNull { it.status == AgentStatus.WORKING }?.session?.id
+        ?: sessions.firstOrNull()?.session?.id
+
+private fun WorkspaceDetail.withRow(sessionId: String, transform: (SessionRow) -> SessionRow): WorkspaceDetail =
+    copy(sessions = sessions.map { if (it.session.id == sessionId) transform(it) else it })
 
 private fun LoadState<WorkspaceDetail>.mapDetail(transform: (WorkspaceDetail) -> WorkspaceDetail): LoadState<WorkspaceDetail> =
     if (this is LoadState.Loaded) LoadState.Loaded(transform(value)) else this

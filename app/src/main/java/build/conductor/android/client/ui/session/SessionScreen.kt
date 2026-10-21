@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -19,17 +18,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -37,23 +30,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
@@ -64,15 +50,12 @@ import build.conductor.android.client.ui.components.SessionStatusBadge
 import build.conductor.android.client.ui.components.EmptyView
 import build.conductor.android.client.ui.components.ErrorView
 import build.conductor.android.client.ui.components.LoadingView
-import build.conductor.android.client.ui.components.copyDeepLink
-import build.conductor.android.client.ui.components.shareDeepLink
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** One session: its status, transcript and composer. The workspace screen shows it under the session's tab. */
 @Composable
-fun SessionScreen(viewModel: SessionViewModel, onBack: () -> Unit, onStarRequested: () -> Unit) {
+fun SessionPane(viewModel: SessionViewModel, snackbarHostState: SnackbarHostState, onStatusChange: (AgentStatus, hasOpenQuestion: Boolean) -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
     LifecycleStartEffect(viewModel) {
         viewModel.onVisible()
         onStopOrDispose { viewModel.onHidden() }
@@ -80,45 +63,26 @@ fun SessionScreen(viewModel: SessionViewModel, onBack: () -> Unit, onStarRequest
     LaunchedEffect(viewModel) {
         viewModel.eventFlow.collect { event -> if (event is SessionEvent.ShowMessage) snackbarHostState.showSnackbar(event.text) }
     }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(state.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-                },
-                actions = { SessionActions(state, viewModel, onStarRequested) },
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        SessionBody(state, viewModel, padding)
+    LaunchedEffect(state.status, state.openQuestion != null) {
+        if (state.status != AgentStatus.UNKNOWN) onStatusChange(state.status, state.openQuestion != null)
     }
+    SessionBody(state, viewModel)
 }
 
 @Composable
-private fun SessionActions(state: SessionUiState, viewModel: SessionViewModel, onStarRequested: () -> Unit) {
-    val context = LocalContext.current
-    var isMenuOpen by remember { mutableStateOf(false) }
-    IconButton(onClick = { if (!state.isStarred) onStarRequested(); viewModel.toggleStar() }) {
+fun StarButton(state: SessionUiState, onToggle: () -> Unit) {
+    IconButton(onClick = onToggle) {
         Icon(
             if (state.isStarred) Icons.Filled.Star else Icons.Outlined.Star,
             contentDescription = if (state.isStarred) "Stop notifications" else "Notify me when the agent finishes",
         )
     }
-    IconButton(onClick = viewModel::refresh) { Icon(Icons.Filled.Refresh, contentDescription = "Refresh") }
-    val deepLink = state.deepLink ?: return
-    IconButton(onClick = { isMenuOpen = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More actions") }
-    DropdownMenu(expanded = isMenuOpen, onDismissRequest = { isMenuOpen = false }) {
-        DropdownMenuItem(text = { Text("Copy Conductor link") }, onClick = { isMenuOpen = false; copyDeepLink(context, deepLink) })
-        DropdownMenuItem(text = { Text("Open in Conductor (share)") }, onClick = { isMenuOpen = false; shareDeepLink(context, state.title, deepLink) })
-    }
 }
 
 @Composable
-private fun SessionBody(state: SessionUiState, viewModel: SessionViewModel, padding: PaddingValues) {
+private fun SessionBody(state: SessionUiState, viewModel: SessionViewModel) {
     val transcriptScroll = rememberTranscriptScrollState()
-    Column(modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
+    Column(modifier = Modifier.fillMaxSize().imePadding()) {
         StatusBar(state, onCancel = viewModel::cancel)
         state.connectionProblem?.let { ConnectionBanner(it) }
         Column(modifier = Modifier.weight(1f)) {

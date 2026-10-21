@@ -21,13 +21,14 @@ import build.conductor.android.client.ui.home.HomeScreen
 import build.conductor.android.client.ui.home.HomeViewModel
 import build.conductor.android.client.ui.projects.ProjectsScreen
 import build.conductor.android.client.ui.projects.ProjectsViewModel
-import build.conductor.android.client.ui.session.SessionScreen
 import build.conductor.android.client.ui.session.SessionViewModel
 import build.conductor.android.client.ui.settings.AppearanceViewModel
 import build.conductor.android.client.ui.settings.SettingsScreen
 import build.conductor.android.client.ui.settings.SettingsViewModel
-import build.conductor.android.client.ui.workspace.WorkspaceDetailScreen
 import build.conductor.android.client.ui.workspace.WorkspaceDetailViewModel
+import build.conductor.android.client.ui.workspace.WorkspaceScreen
+import build.conductor.android.client.ui.workspace.WorkspaceScreenActions
+import build.conductor.android.client.ui.workspace.title
 import build.conductor.android.client.ui.workspaces.CreateWorkspaceScreen
 import build.conductor.android.client.ui.workspaces.CreateWorkspaceViewModel
 import build.conductor.android.client.ui.workspaces.WorkspacesScreen
@@ -39,7 +40,7 @@ private const val FIRST_RUN_NOTICE = "Welcome. Paste a Conductor API key to conn
 private const val REJECTED_KEY_NOTICE = "Conductor rejected the saved API key. Paste a new key to continue."
 
 @Composable
-fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: MutableStateFlow<SessionRoute?>) {
+fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: MutableStateFlow<WorkspaceRoute?>) {
     val navController = rememberNavController()
     LaunchedEffect(container) {
         container.repository.unauthorizedEvents.collect { navController.openSettingsAsRoot(REJECTED_KEY_NOTICE) }
@@ -109,28 +110,25 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
                 projectName = route.projectName,
                 onCreated = { created ->
                     navController.popBackStack()
-                    navController.navigate(WorkspaceRoute(created.workspaceId))
-                    navController.navigate(SessionRoute(created.sessionId, "New session"))
+                    navController.navigate(WorkspaceRoute(created.workspaceId, created.sessionId))
                 },
                 onBack = { navController.popBackStack() },
             )
         }
         composable<WorkspaceRoute> { entry ->
             val route = entry.toRoute<WorkspaceRoute>()
-            WorkspaceDetailScreen(
-                viewModel = viewModel { WorkspaceDetailViewModel(container.repository, route.workspaceId, container.openQuestionTracker) },
-                onOpenSession = { sessionId, title -> navController.navigate(SessionRoute(sessionId, title)) },
-                onArchived = { navController.popBackStack() },
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable<SessionRoute> { entry ->
-            val route = entry.toRoute<SessionRoute>()
-            val requestNotifications = rememberNotificationPermissionRequest()
-            SessionScreen(
-                viewModel = viewModel { SessionViewModel(container.repository, route.sessionId, route.title, container.starredSessionStore) },
-                onBack = { navController.popBackStack() },
-                onStarRequested = requestNotifications,
+            WorkspaceScreen(
+                viewModel = viewModel {
+                    WorkspaceDetailViewModel(container.repository, route.workspaceId, container.openQuestionTracker, route.sessionId)
+                },
+                actions = WorkspaceScreenActions(
+                    sessionViewModel = { row ->
+                        viewModel(key = row.session.id) { SessionViewModel(container.repository, row.session.id, row.title, container.starredSessionStore) }
+                    },
+                    onStarRequested = rememberNotificationPermissionRequest(),
+                    onArchived = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() },
+                ),
             )
         }
     }

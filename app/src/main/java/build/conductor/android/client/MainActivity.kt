@@ -12,13 +12,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import build.conductor.android.client.notify.StatusNotifier
 import build.conductor.android.client.ui.components.LoadingView
 import build.conductor.android.client.ui.navigation.AppNavHost
-import build.conductor.android.client.ui.navigation.SessionRoute
+import build.conductor.android.client.ui.navigation.WorkspaceRoute
 import build.conductor.android.client.ui.theme.ConductorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
     /** A session that a notification asked to open. The nav host clears it after it navigates. */
-    private val requestedSession = MutableStateFlow<SessionRoute?>(null)
+    private val requestedSession = MutableStateFlow<WorkspaceRoute?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -47,8 +47,8 @@ class MainActivity : ComponentActivity() {
         sessionRouteFrom(intent)?.let { requestedSession.value = it }
     }
 
-    private fun sessionRouteFrom(intent: Intent): SessionRoute? {
-        val sessionId = intent.getStringExtra(StatusNotifier.EXTRA_SESSION_ID) ?: return null
-        return SessionRoute(sessionId, intent.getStringExtra(StatusNotifier.EXTRA_SESSION_TITLE) ?: "Session")
+    private fun sessionRouteFrom(intent: Intent): WorkspaceRoute? {
+        val workspaceId = intent.getStringExtra(StatusNotifier.EXTRA_WORKSPACE_ID) ?: return null
+        return WorkspaceRoute(workspaceId, intent.getStringExtra(StatusNotifier.EXTRA_SESSION_ID))
     }
 }

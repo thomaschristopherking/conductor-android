@@ -60,18 +60,60 @@ class WorkspaceDetailViewModelTest {
     }
 
     @Test
-    fun `archive and create session emit navigation events`() = runTest {
-        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
+    fun `the requested session opens first`() = runTest {
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)), initialSessionId = "s2")
         advanceUntilIdle()
 
-        viewModel.eventFlow.test {
-            viewModel.createSession(NewSessionInput(ModelSelection("claude", "haiku-4-5", null), "Quick", ""))
-            assertEquals(WorkspaceEvent.OpenSession("s-created", "Quick"), awaitItem())
-            viewModel.archive()
-            assertEquals(WorkspaceEvent.Archived, awaitItem())
-        }
+        assertEquals("s2", viewModel.uiState.value.selectedSessionId)
+    }
+
+    @Test
+    fun `with no request, the session with an open question opens before a working session`() = runTest {
+        val rows = listOf(row("a", AgentStatus.IDLE), row("b", AgentStatus.WORKING), row("c", AgentStatus.WORKING, hasOpenQuestion = true))
+
+        assertEquals("c", chooseSession(null, rows))
+        assertEquals("b", chooseSession(null, rows.take(2)))
+        assertEquals("a", chooseSession("gone", rows.take(1)))
+        assertEquals(null, chooseSession(null, emptyList()))
+    }
+
+    @Test
+    fun `a new session gets a tab and opens`() = runTest {
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
+        advanceUntilIdle()
+        repository.sessionsInWorkspace += Session("s-created", "conductor://x", "Quick")
+
+        viewModel.createSession(NewSessionInput(ModelSelection("claude", "haiku-4-5", null), "Quick", ""))
+        advanceUntilIdle()
+
+        assertEquals("s-created", viewModel.uiState.value.selectedSessionId)
+        assertEquals(listOf("One", "Two", "Quick"), (viewModel.uiState.value.detail as LoadState.Loaded).value.sessions.map { it.title })
         val request = repository.createdSessions.single()
         assertEquals("haiku-4-5", request.model)
         assertEquals(null, request.message)
     }
+
+    @Test
+    fun `the open session updates its own tab status`() = runTest {
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
+        advanceUntilIdle()
+
+        viewModel.recordSessionStatus("s1", AgentStatus.IDLE, hasOpenQuestion = false)
+
+        assertEquals(listOf(AgentStatus.IDLE, AgentStatus.ERROR), (viewModel.uiState.value.detail as LoadState.Loaded).value.sessions.map { it.status })
+    }
+
+    @Test
+    fun `archive emits an event`() = runTest {
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
+        advanceUntilIdle()
+
+        viewModel.eventFlow.test {
+            viewModel.archive()
+            assertEquals(WorkspaceEvent.Archived, awaitItem())
+        }
+    }
+
+    private fun row(id: String, status: AgentStatus, hasOpenQuestion: Boolean = false) =
+        SessionRow(Session(id, "conductor://$id", id), status, hasOpenQuestion)
 }
