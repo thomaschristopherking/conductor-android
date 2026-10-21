@@ -7,10 +7,13 @@ import app.cash.turbine.test
 import build.conductor.android.client.FakeConductorRepository
 import build.conductor.android.client.MainDispatcherRule
 import build.conductor.android.client.data.AgentStatus
+import build.conductor.android.client.data.RecentCache
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.settings.StarredSessions
 import build.conductor.android.client.data.transcript.Delivery
 import build.conductor.android.client.data.transcript.TranscriptItem
+import build.conductor.android.client.data.transcript.TranscriptSnapshot
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -97,6 +100,25 @@ class SessionViewModelTest {
         assertTrue(repository.sentMessages.isEmpty())
         assertNotNull(viewModel.uiState.value.openQuestion)
         viewModel.onHidden()
+    }
+
+    @Test
+    fun `a session that opens again shows its last transcript at once and reads only newer messages`() = runTest {
+        repeat(3) { repository.addAgentText("Step $it") }
+        val transcripts = RecentCache<String, TranscriptSnapshot>(maxEntries = 4)
+        SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", transcripts = transcripts)
+        runCurrent()
+        repository.addAgentText("Step 3")
+        repository.messagesGate = CompletableDeferred()
+
+        val reopened = SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", transcripts = transcripts)
+        runCurrent()
+
+        assertEquals(3, reopened.uiState.value.items.size)
+        repository.messagesGate?.complete(Unit)
+        runCurrent()
+        assertEquals(4, reopened.uiState.value.items.size)
+        assertEquals(listOf(null, "m3"), repository.messageCursors)
     }
 
     @Test

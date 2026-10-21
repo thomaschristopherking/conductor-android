@@ -119,11 +119,11 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
             val route = entry.toRoute<WorkspaceRoute>()
             WorkspaceScreen(
                 viewModel = viewModel {
-                    WorkspaceDetailViewModel(container.repository, route.workspaceId, container.openQuestionTracker, route.sessionId)
+                    WorkspaceDetailViewModel(container.repository, route.workspaceId, container.openQuestionTracker, route.sessionId, container.workspaceDetails)
                 },
                 actions = WorkspaceScreenActions(
                     sessionViewModel = { row ->
-                        viewModel(key = row.session.id) { SessionViewModel(container.repository, row.session.id, row.title, container.starredSessionStore) }
+                        viewModel(key = row.session.id) { SessionViewModel(container.repository, row.session.id, row.title, container.starredSessionStore, container.transcripts) }
                     },
                     onStarRequested = rememberNotificationPermissionRequest(),
                     onArchived = { navController.popBackStack() },

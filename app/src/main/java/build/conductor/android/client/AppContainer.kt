@@ -9,6 +9,7 @@ import build.conductor.android.client.data.FileHomeSnapshots
 import build.conductor.android.client.data.HomeSnapshots
 import build.conductor.android.client.data.OpenQuestionTracker
 import build.conductor.android.client.data.QuestionScanner
+import build.conductor.android.client.data.RecentCache
 import build.conductor.android.client.data.api.createConductorApi
 import build.conductor.android.client.data.settings.AesGcmCipher
 import build.conductor.android.client.data.settings.ApiKeyStore
@@ -16,6 +17,8 @@ import build.conductor.android.client.data.settings.AppearanceStore
 import build.conductor.android.client.data.settings.ColorSchemeChoice
 import build.conductor.android.client.data.settings.StarredSessionStore
 import build.conductor.android.client.data.settings.androidKeystoreKey
+import build.conductor.android.client.data.transcript.TranscriptSnapshot
+import build.conductor.android.client.ui.workspace.WorkspaceDetail
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -60,9 +63,19 @@ class AppContainer(context: Context) {
 
     val homeSnapshots: HomeSnapshots = FileHomeSnapshots(File(context.cacheDir, HOME_SNAPSHOT_FILE))
 
+    val transcripts = RecentCache<String, TranscriptSnapshot>(MAX_SAVED_TRANSCRIPTS)
+
+    val workspaceDetails = RecentCache<String, WorkspaceDetail>(MAX_SAVED_WORKSPACES)
+
     init {
         // The first key is the one saved at start; a later key can belong to a different account.
-        applicationScope.launch { apiKeyState.filterNot { it == ApiKeyState.Loading }.drop(1).collect { homeSnapshots.clear() } }
+        applicationScope.launch { apiKeyState.filterNot { it == ApiKeyState.Loading }.drop(1).collect { clearAccountData() } }
+    }
+
+    private suspend fun clearAccountData() {
+        homeSnapshots.clear()
+        transcripts.clear()
+        workspaceDetails.clear()
     }
 
     private companion object {
@@ -70,6 +83,8 @@ class AppContainer(context: Context) {
         const val STARRED_SESSIONS_FILE = "starred_sessions"
         const val KEYSTORE_ALIAS = "conductor_api_key"
         const val HOME_SNAPSHOT_FILE = "home_snapshot.json"
+        const val MAX_SAVED_TRANSCRIPTS = 12
+        const val MAX_SAVED_WORKSPACES = 20
     }
 }
 

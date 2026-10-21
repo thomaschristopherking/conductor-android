@@ -7,6 +7,7 @@ import build.conductor.android.client.data.ConductorRepository
 import build.conductor.android.client.data.ModelCatalog
 import build.conductor.android.client.data.ModelSelection
 import build.conductor.android.client.data.OpenQuestionTracker
+import build.conductor.android.client.data.RecentCache
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.CreateSessionRequest
 import build.conductor.android.client.data.api.Session
@@ -58,16 +59,25 @@ class WorkspaceDetailViewModel(
     private val workspaceId: String,
     private val openQuestionTracker: OpenQuestionTracker,
     initialSessionId: String? = null,
+    private val details: RecentCache<String, WorkspaceDetail> = RecentCache(maxEntries = 0),
 ) : ViewModel() {
     private val state = MutableStateFlow(WorkspaceDetailUiState(selectedSessionId = initialSessionId))
     val uiState: StateFlow<WorkspaceDetailUiState> = state.asStateFlow()
     private val events = Channel<WorkspaceEvent>(Channel.BUFFERED)
     val eventFlow: Flow<WorkspaceEvent> = events.receiveAsFlow()
     private val statusPermits = Semaphore(MAX_PARALLEL_STATUS_CALLS)
+    private var isFirstVisit = true
 
     init {
-        load()
+        details[workspaceId]?.let(::showSaved) ?: load()
+        viewModelScope.launch { uiState.collect { state -> (state.detail as? LoadState.Loaded)?.let { details[workspaceId] = it.value } } }
         viewModelScope.launch { loadFavorites() }
+    }
+
+    /** The tabs from the last visit show while the screen reads them again. */
+    private fun showSaved(detail: WorkspaceDetail) {
+        show(detail)
+        refresh()
     }
 
     fun load() {
@@ -82,7 +92,8 @@ class WorkspaceDetailViewModel(
 
     /** Refreshes the session tabs when the screen comes back; the first load is in [init]. */
     fun onVisible() {
-        if (state.value.detail is LoadState.Loaded) refresh()
+        if (!isFirstVisit && state.value.detail is LoadState.Loaded) refresh()
+        isFirstVisit = false
     }
 
     fun selectSession(sessionId: String) = state.update { it.copy(selectedSessionId = sessionId) }

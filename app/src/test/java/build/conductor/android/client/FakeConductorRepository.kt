@@ -50,6 +50,10 @@ class FakeConductorRepository : ConductorRepository {
     var allWorkspacesGate: CompletableDeferred<Unit>? = null
     var favorites = listOf(FavoriteModel("codex", "gpt-6.1-sol", "high"))
     var sessionsInWorkspace = listOf<Session>()
+
+    /** While set, the request for the sessions of a workspace waits until the test completes it. */
+    var sessionsGate: CompletableDeferred<Unit>? = null
+    var sessionsRequestCount = 0
     var sessionStatuses = mutableMapOf<String, String>()
 
     /** A session in this map reads its own transcript; every other session reads [transcript]. */
@@ -114,7 +118,11 @@ class FakeConductorRepository : ConductorRepository {
         return ArchivedWorkspace(workspaceId, "archived")
     }
 
-    override suspend fun sessions(workspaceId: String): List<Session> = sessionsInWorkspace
+    override suspend fun sessions(workspaceId: String): List<Session> {
+        sessionsRequestCount++
+        sessionsGate?.await()
+        return sessionsInWorkspace
+    }
 
     override suspend fun createSession(request: CreateSessionRequest): Session {
         createdSessions += request

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import build.conductor.android.client.data.AgentStatus
 import build.conductor.android.client.data.ConductorRepository
+import build.conductor.android.client.data.RecentCache
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.Message
 import build.conductor.android.client.data.settings.StarredSessions
@@ -13,6 +14,7 @@ import build.conductor.android.client.data.transcript.Question
 import build.conductor.android.client.data.transcript.QuestionAnswer
 import build.conductor.android.client.data.transcript.TranscriptItem
 import build.conductor.android.client.data.transcript.TranscriptParser
+import build.conductor.android.client.data.transcript.TranscriptSnapshot
 import build.conductor.android.client.data.transcript.attachQuestionResults
 import build.conductor.android.client.data.transcript.findOpenQuestion
 import build.conductor.android.client.data.transcript.formatAnswers
@@ -65,6 +67,7 @@ class SessionViewModel(
     private val sessionId: String,
     title: String,
     private val starredSessions: StarredSessions = StarredSessions.None,
+    private val transcripts: RecentCache<String, TranscriptSnapshot> = RecentCache(maxEntries = 0),
     private val newMessageId: () -> String = { UUID.randomUUID().toString() },
 ) : ViewModel() {
     private val state = MutableStateFlow(SessionUiState(title = title))
@@ -72,7 +75,7 @@ class SessionViewModel(
     private val events = Channel<SessionEvent>(Channel.BUFFERED)
     val eventFlow: Flow<SessionEvent> = events.receiveAsFlow()
 
-    private val transcript = TranscriptBuffer()
+    private val transcript = TranscriptBuffer(transcripts[sessionId])
     private val pendingPrompts = mutableListOf<PendingPrompt>()
 
     /** Questions whose answers the app sent; the form closes before the agent's tool result arrives. */
@@ -93,6 +96,7 @@ class SessionViewModel(
     private var deliveryGracePolls = 0
 
     init {
+        publishItems()
         load()
         viewModelScope.launch {
             starredSessions.starredIds.collect { ids -> state.update { it.copy(isStarred = sessionId in ids) } }
@@ -268,7 +272,12 @@ class SessionViewModel(
         newItems.isNotEmpty()
     }
 
-    private suspend fun fetchNewItems(): List<TranscriptItem> = transcript.append(repository.newMessages(sessionId, transcript.lastMessageId))
+    private suspend fun fetchNewItems(): List<TranscriptItem> {
+        val messages = repository.newMessages(sessionId, transcript.lastMessageId)
+        val added = transcript.append(messages)
+        if (messages.isNotEmpty()) transcripts[sessionId] = transcript.snapshot()
+        return added
+    }
 
     private fun applyStatus(status: SessionStatus, newItems: List<TranscriptItem>) {
         val agentStatus = AgentStatus.from(status.status)
@@ -333,12 +342,14 @@ class SessionViewModel(
 }
 
 /** The parsed transcript, and the id of the last message, for the next `after` query. */
-private class TranscriptBuffer {
-    private val seenMessageIds = mutableSetOf<String>()
-    var items: List<TranscriptItem> = emptyList()
+private class TranscriptBuffer(saved: TranscriptSnapshot?) {
+    private val seenMessageIds = saved?.messageIds.orEmpty().toMutableSet()
+    var items: List<TranscriptItem> = saved?.items.orEmpty()
         private set
-    var lastMessageId: String? = null
+    var lastMessageId: String? = saved?.lastMessageId
         private set
+
+    fun snapshot() = TranscriptSnapshot(items, lastMessageId, seenMessageIds.toSet())
 
     fun append(messages: List<Message>): List<TranscriptItem> {
         val fresh = messages.filter { seenMessageIds.add(it.id) }
