@@ -21,6 +21,7 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
   - A spinner on a tab shows that its agent works. A coloured dot shows a question for you. A red dot shows an error.
   - The "+" tab creates a session. The new session opens in a new tab.
   - The first tab to open is the session from a notification. If there is no notification, it is the session with a question, then a working session, then the first session.
+  - When you open a workspace again, its tabs from the last visit show at once while the app reads them again.
   - The tabs show when the status of each session is known. The app then reads the transcripts of the other working sessions to find questions. It waits for those transcripts first only when two or more agents work, because then a question decides the first tab.
   - The menu renames the workspace, archives it, or copies and shares the Conductor link of the open session.
 - **Session.** The transcript as a chat, with markdown and code blocks. A composer at the bottom moves up with the keyboard. "Stop" cancels the agent's turn.
@@ -29,6 +30,7 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
   - A picture from a web address (`https://...`) shows in the message. Tap it to open it in the browser.
   - A picture from a file on the cloud machine shows as a card with the file name. The public API cannot send workspace files, so the phone cannot show the picture.
   - The chat opens at the newest message. New messages stay in view while you are at the newest message.
+  - The app keeps the 12 chats that you opened last in memory. When you open one of them again, it shows at once, and the app reads only the newer messages.
   - When you scroll back to older messages, new messages do not move the chat. A round arrow button takes you back to the newest message. When you send a prompt, the chat goes to the newest message.
   - When the agent asks you a question, the chat shows the question with its options. Choose the options, or type in "Other", then tap "Send answers".
   - While the agent works, the app polls every 3 seconds for new messages only.
@@ -72,7 +74,8 @@ Do not put the API key in the build. The app reads the key only from its encrypt
 
 The unit tests run on the JVM. They do not need a device or the network.
 
-- `data/api/ConductorApiTest.kt` sends every request to a MockWebServer and parses the fixtures.
+- `data/api/ConductorApiTest.kt` sends every request to a MockWebServer and parses the fixtures. It also tests the copies of a slow `GET`, and the transcript pages that the app reads 8 at a time.
+- `data/api/HedgePolicyTest.kt` tests when the app sends a copy of a slow request, with virtual time.
 - `data/transcript/TranscriptParserTest.kt` turns live transcript events into chat rows.
 - `data/ModelCatalogTest.kt` compares the agent and model lists with `docs/openapi.json`. It fails when the spec changes.
 - `ui/session/SessionViewModelTest.kt` tests polling, back-off, sending and cancelling with virtual time.
@@ -126,19 +129,21 @@ I made these decisions without a person to ask.
 17. **Archive by swipe.** The app waits until the "Undo" button goes away, then it sends the archive request. Archive stops the cloud machine, so an undo after the request would restart the machine. The app does not use `POST /v0/workspaces/{id}/unarchive`.
 18. **Colour scheme.** The Neapolitan and Spumoni schemes are fixed palettes. They do not use the wallpaper colours. Each text colour meets the WCAG AA contrast ratio of 4.5 to 1 on its background.
 19. **Answers to questions.** The public API cannot answer Conductor's question form. The app sends your answers as one message. The message closes the form, and the agent reads the answers from the message. See `docs/API_NOTES.md`.
+20. **Slow requests.** The live API sometimes answers a request only after 2 to 8 seconds, at random. When a `GET` has no answer after 1 second, the app sends a copy. After 2 seconds, it sends a third copy. The first answer wins, and the app cancels the other copies. A `POST` is sent once.
+21. **Long transcripts.** The app reads the first page of a transcript alone. If more pages follow, it reads 8 pages at a time.
 
 ## Known limitations
 
 - **Not run on a device.** The build machine had no emulator. Layout, keyboard behaviour, dynamic colour and notifications are not checked on a screen. Nobody has opened the R8 release build on a device yet.
 - **Write calls are not checked against the live API.** I used the live API for read-only calls, and for one test message that answered a question. Create, rename, archive and cancel are checked against MockWebServer and the OpenAPI spec only.
-- **Long transcripts.** A session tab loads the full transcript when it opens, 200 messages for each request.
-- **Little offline cache.** Only the home screen keeps its last list. Every other screen loads from the network.
+- **Long transcripts.** The first time that a session tab opens, it loads the full transcript, 100 messages for each request.
+- **Little offline cache.** Only the home screen keeps its last list on the phone. Workspaces and chats stay in memory only while the app runs.
 - **Debug key.** The debug key of the build machine signs the APK. A build from a different machine has a different key, so Android does not install it over the earlier build. Uninstall the earlier build first.
 - **Background checks.** Android runs periodic work at most every 15 minutes, and it can delay the work to save battery. An open session tab records each status that it sees, so a short turn that you start from the app is caught. A turn that starts and ends between two checks while the app is closed is not caught.
 - **Code blocks.** Code blocks have no syntax colours.
 - **Pictures in the workspace.** An agent usually saves a screenshot as a file on the cloud machine. The API has no endpoint that reads a workspace file, and the workspace preview URL rejects an API key with HTTP 401. So the app shows the file name, not the picture.
 - **Archive by swipe.** If Android stops the app during the 5 seconds of the "Undo" button, the app does not send the archive request. The workspace stays in the list.
-- **Finding a question costs requests.** The status stays "working" while a question waits, so the app reads the transcript to find it. The API returns messages oldest first, so the first look at a long session reads the whole transcript, 200 messages for each request. Later looks read only new messages.
+- **Finding a question costs requests.** The status stays "working" while a question waits, so the app reads the transcript to find it. The API returns messages oldest first, so the first look at a long session reads the whole transcript, 100 messages for each request. Later looks read only new messages.
 - **Codex questions.** I tested questions from Claude sessions only.
 
 ## Contributing

@@ -29,7 +29,8 @@ A project contains workspaces. A workspace contains sessions. A session contains
 ## Pagination and errors
 
 - List endpoints take `limit` and `offset`. They return `{ "data": [...], "offset": n, "hasMore": bool }`.
-- The default `limit` is 5. The spec does not say this. The app always sends `limit=100`, or `limit=200` for messages, and follows `hasMore`.
+- The default `limit` is 5. The spec does not say this. The app always sends `limit=100` and follows `hasMore`.
+- The live API sends no more than 100 items in one page. On 2026-10-21, `limit=200` and `limit=500` on the messages endpoint each gave 100 messages.
 - An error body is a `StructuredError`. Only `userMessage` is required. The live API also sends `code`, `source`, `traceId` and sometimes `details`.
 - The live API returns 404 with `code: "NOT_FOUND"` and 400 with `code: "INVALID_REQUEST"`.
 - The spec does not document HTTP 429. The app treats 429 and 5xx as errors that the user can retry.
@@ -67,9 +68,9 @@ A project contains workspaces. A workspace contains sessions. A session contains
 
 ## Incremental transcript polling
 
-1. Load the first page with `GET /v0/sessions/{id}/messages?limit=200`. Continue with `after=<last id>` while `hasMore` is `true`.
+1. Load the first page with `GET /v0/sessions/{id}/messages?limit=100&offset=0`. While `hasMore` is `true`, load the next pages with `offset`, 8 pages at a time.
 2. Remember the `id` of the last message.
-3. Poll with `GET /v0/sessions/{id}/messages?after=<last id>&limit=200`. The response holds only newer messages, in ascending `sessionIndex` order.
+3. Poll with `GET /v0/sessions/{id}/messages?after=<last id>&limit=100`. The response holds only newer messages, in ascending `sessionIndex` order.
 4. Do not combine `after` with `offset`. The live API answers 400: `Cannot combine \`after\` with \`offset\`; use one or the other.`
 5. Poll the status endpoint at the same time. Stop when the status is `idle` or `error`.
 
@@ -155,6 +156,7 @@ The link opens the Conductor desktop app. Android cannot open it, so the app off
 7. **The default page size is 5.** `GET /v0/projects` with no `limit` returns 5 of 9 projects and `hasMore: true`. One workspace has 89 sessions, so the app limits the status calls to 6 at a time.
 8. **Python's default user agent gets HTTP 403.** The edge network blocks the `Python-urllib` user agent. An `okhttp/5.5.0` user agent gets HTTP 200. The capture script sends a curl user agent.
 9. **`workspaceIds` of a section includes archived workspaces.** In one account, 30 of the 37 workspace ids in sections were archived. The app shows a section only when at least one of its workspaces is in the list. The live response also has no `emoji` key when a section has no emoji.
+10. **Some requests are slow, at random.** On 2026-10-21, for about 10 minutes, about one request in five took 2 to 8 seconds. The other requests took 0.1 to 0.5 seconds. A request on the same connection right after a slow one was fast, so the delay is in the server, not in the connection. Some minutes later, no request took more than 0.8 seconds. The app sends a copy of a `GET` that has no answer after 1 second.
 
 ## Fixtures
 
