@@ -1,173 +1,215 @@
 package build.conductor.android.client.ui.workspace
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import build.conductor.android.client.data.WorkspaceState
 import build.conductor.android.client.data.api.Workspace
-import build.conductor.android.client.ui.components.SessionStatusBadge
 import build.conductor.android.client.ui.components.EmptyView
 import build.conductor.android.client.ui.components.ErrorView
 import build.conductor.android.client.ui.components.LoadState
 import build.conductor.android.client.ui.components.LoadingView
-import build.conductor.android.client.ui.components.WorkspaceStateBadge
 import build.conductor.android.client.ui.components.copyDeepLink
-import build.conductor.android.client.ui.components.relativeTime
 import build.conductor.android.client.ui.components.shareDeepLink
+import build.conductor.android.client.ui.components.workspaceStateLabel
+import build.conductor.android.client.ui.session.SessionPane
+import build.conductor.android.client.ui.session.SessionViewModel
+import build.conductor.android.client.ui.session.StarButton
 import build.conductor.android.client.ui.workspaces.repositoryName
 
 private enum class WorkspaceDialog { RENAME, ARCHIVE, NEW_SESSION }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** What the workspace screen asks of the app outside it. */
+class WorkspaceScreenActions(
+    val sessionViewModel: @Composable (SessionRow) -> SessionViewModel,
+    val onStarRequested: () -> Unit,
+    val onArchived: () -> Unit,
+    val onBack: () -> Unit,
+)
+
 @Composable
-fun WorkspaceDetailScreen(
-    viewModel: WorkspaceDetailViewModel,
-    onOpenSession: (sessionId: String, title: String) -> Unit,
-    onArchived: () -> Unit,
-    onBack: () -> Unit,
-) {
+fun WorkspaceScreen(viewModel: WorkspaceDetailViewModel, actions: WorkspaceScreenActions) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var openDialog by remember { mutableStateOf<WorkspaceDialog?>(null) }
-    LaunchedEffect(viewModel) {
-        viewModel.eventFlow.collect { event ->
-            when (event) {
-                is WorkspaceEvent.OpenSession -> onOpenSession(event.sessionId, event.title)
-                WorkspaceEvent.Archived -> onArchived()
-            }
+    WorkspaceEffects(viewModel, state, snackbarHostState, actions.onArchived)
+    val detail = (state.detail as? LoadState.Loaded)?.value
+    val selectedRow = detail?.sessions?.firstOrNull { it.session.id == state.selectedSessionId }
+    val selectedSession = selectedRow?.let { actions.sessionViewModel(it) }
+    Scaffold(
+        topBar = {
+            WorkspaceTopBar(detail?.workspace, selectedSession, actions) { dialog -> openDialog = dialog }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        WorkspaceBody(state, viewModel, padding) { sessions ->
+            SessionTabs(sessions, state.selectedSessionId, viewModel, TabCallbacks(actions.sessionViewModel, snackbarHostState) { openDialog = WorkspaceDialog.NEW_SESSION })
         }
+    }
+    WorkspaceDialogs(openDialog, detail?.workspace, state, viewModel, onDismiss = { openDialog = null })
+}
+
+@Composable
+private fun WorkspaceEffects(viewModel: WorkspaceDetailViewModel, state: WorkspaceDetailUiState, snackbarHostState: SnackbarHostState, onArchived: () -> Unit) {
+    LifecycleStartEffect(viewModel) {
+        viewModel.onVisible()
+        onStopOrDispose {}
+    }
+    LaunchedEffect(viewModel) {
+        viewModel.eventFlow.collect { event -> if (event == WorkspaceEvent.Archived) onArchived() }
     }
     LaunchedEffect(state.snackbarMessage) {
         state.snackbarMessage?.let { snackbarHostState.showSnackbar(it); viewModel.onSnackbarShown() }
     }
-    val workspace = (state.detail as? LoadState.Loaded)?.value?.workspace
-    Scaffold(
-        topBar = { WorkspaceTopBar(workspace, onBack, onDialog = { openDialog = it }) },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        floatingActionButton = {
-            if (workspace != null) {
-                ExtendedFloatingActionButton(
-                    onClick = { openDialog = WorkspaceDialog.NEW_SESSION },
-                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                    text = { Text("New session") },
-                )
-            }
-        },
-    ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (state.isBusy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            PullToRefreshBox(isRefreshing = state.isRefreshing, onRefresh = viewModel::refresh, modifier = Modifier.fillMaxSize()) {
-                when (val detail = state.detail) {
-                    LoadState.Loading -> LoadingView()
-                    is LoadState.Failed -> ErrorView(detail.message, viewModel::load)
-                    is LoadState.Loaded -> WorkspaceContent(detail.value, onOpenSession)
-                }
-            }
-        }
-    }
-    WorkspaceDialogs(openDialog, workspace, state, viewModel, onDismiss = { openDialog = null })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun WorkspaceTopBar(workspace: Workspace?, onBack: () -> Unit, onDialog: (WorkspaceDialog) -> Unit) {
+private fun WorkspaceTopBar(workspace: Workspace?, selectedSession: SessionViewModel?, actions: WorkspaceScreenActions, onDialog: (WorkspaceDialog) -> Unit) {
     TopAppBar(
-        title = { Text(workspace?.name ?: "Workspace", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        title = { WorkspaceTitle(workspace) },
         navigationIcon = {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            IconButton(onClick = actions.onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
         },
-        actions = { if (workspace != null) WorkspaceMenu(workspace, onDialog) },
+        actions = {
+            if (selectedSession != null) SessionActions(selectedSession, actions.onStarRequested)
+            if (workspace != null) WorkspaceMenu(workspace, selectedSession, onDialog)
+        },
     )
 }
 
 @Composable
-private fun WorkspaceMenu(workspace: Workspace, onDialog: (WorkspaceDialog) -> Unit) {
+private fun WorkspaceTitle(workspace: Workspace?) {
+    Column {
+        Text(workspace?.name ?: "Workspace", maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (workspace != null) {
+            Text(workspaceSubtitle(workspace), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+private fun workspaceSubtitle(workspace: Workspace): String {
+    val state = WorkspaceState.from(workspace.state)
+    val repository = repositoryName(workspace.repoUrl)
+    return if (state == WorkspaceState.READY) repository else "$repository · ${workspaceStateLabel(state, workspace.lifecycleStep)}"
+}
+
+@Composable
+private fun SessionActions(session: SessionViewModel, onStarRequested: () -> Unit) {
+    val state by session.uiState.collectAsStateWithLifecycle()
+    StarButton(state) { if (!state.isStarred) onStarRequested(); session.toggleStar() }
+    IconButton(onClick = session::refresh) { Icon(Icons.Filled.Refresh, contentDescription = "Refresh") }
+}
+
+/** The Conductor link of the open session opens the workspace at that session, so it replaces the workspace link. */
+@Composable
+private fun WorkspaceMenu(workspace: Workspace, selectedSession: SessionViewModel?, onDialog: (WorkspaceDialog) -> Unit) {
     val context = LocalContext.current
+    val sessionLink = selectedSession?.uiState?.collectAsStateWithLifecycle()?.value?.deepLink
+    val deepLink = sessionLink ?: workspace.deepLink
     var isExpanded by remember { mutableStateOf(false) }
     IconButton(onClick = { isExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More actions") }
     DropdownMenu(expanded = isExpanded, onDismissRequest = { isExpanded = false }) {
-        DropdownMenuItem(text = { Text("Rename") }, onClick = { isExpanded = false; onDialog(WorkspaceDialog.RENAME) })
-        DropdownMenuItem(text = { Text("Copy Conductor link") }, onClick = { isExpanded = false; copyDeepLink(context, workspace.deepLink) })
-        DropdownMenuItem(
-            text = { Text("Open in Conductor (share)") },
-            onClick = { isExpanded = false; shareDeepLink(context, workspace.name, workspace.deepLink) },
-        )
+        DropdownMenuItem(text = { Text("Copy Conductor link") }, onClick = { isExpanded = false; copyDeepLink(context, deepLink) })
+        DropdownMenuItem(text = { Text("Open in Conductor (share)") }, onClick = { isExpanded = false; shareDeepLink(context, workspace.name, deepLink) })
+        DropdownMenuItem(text = { Text("Rename workspace") }, onClick = { isExpanded = false; onDialog(WorkspaceDialog.RENAME) })
         if (WorkspaceState.from(workspace.state) != WorkspaceState.ARCHIVED) {
-            DropdownMenuItem(text = { Text("Archive") }, onClick = { isExpanded = false; onDialog(WorkspaceDialog.ARCHIVE) })
+            DropdownMenuItem(text = { Text("Archive workspace") }, onClick = { isExpanded = false; onDialog(WorkspaceDialog.ARCHIVE) })
         }
     }
 }
 
 @Composable
-private fun WorkspaceContent(detail: WorkspaceDetail, onOpenSession: (String, String) -> Unit) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        item(key = "header") { WorkspaceHeader(detail.workspace) }
-        if (detail.sessions.isEmpty()) {
-            item(key = "empty") { EmptyView("No sessions", "Tap New session to start an agent chat.") }
-        }
-        items(detail.sessions, key = { it.session.id }) { row ->
-            val title = row.session.name ?: "Untitled session"
-            ListItem(
-                headlineContent = { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-                supportingContent = { Text(listOfNotNull(row.session.model, row.session.effort).joinToString(" · ")) },
-                trailingContent = { SessionStatusBadge(row.status, row.hasOpenQuestion) },
-                modifier = Modifier.clickable { onOpenSession(row.session.id, title) },
-            )
-            HorizontalDivider()
+private fun WorkspaceBody(
+    state: WorkspaceDetailUiState,
+    viewModel: WorkspaceDetailViewModel,
+    padding: PaddingValues,
+    tabs: @Composable (List<SessionRow>) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
+        if (state.isBusy || state.isRefreshing) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        when (val detail = state.detail) {
+            LoadState.Loading -> LoadingView()
+            is LoadState.Failed -> ErrorView(detail.message, viewModel::load)
+            is LoadState.Loaded -> tabs(detail.value.sessions)
         }
     }
 }
 
+/** What the tabs need from the screen. */
+private class TabCallbacks(
+    val sessionViewModel: @Composable (SessionRow) -> SessionViewModel,
+    val snackbarHostState: SnackbarHostState,
+    val onNewSession: () -> Unit,
+)
+
 @Composable
-private fun WorkspaceHeader(workspace: Workspace) {
-    Card(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                WorkspaceStateBadge(WorkspaceState.from(workspace.state), workspace.lifecycleStep)
-                relativeTime(workspace.lastActivityAt)?.let { Text("Active $it", style = MaterialTheme.typography.bodySmall) }
+private fun SessionTabs(sessions: List<SessionRow>, selectedSessionId: String?, viewModel: WorkspaceDetailViewModel, callbacks: TabCallbacks) {
+    val selectedIndex = sessions.indexOfFirst { it.session.id == selectedSessionId }.coerceAtLeast(0)
+    val pagerState = rememberPagerState(initialPage = selectedIndex) { sessions.size }
+    SyncPagerWithSelection(pagerState, sessions, selectedIndex, viewModel::selectSession)
+    Column(modifier = Modifier.fillMaxSize()) {
+        SessionTabRow(sessions, selectedIndex.takeIf { sessions.isNotEmpty() }, onSelect = viewModel::selectSession, onNewSession = callbacks.onNewSession)
+        if (sessions.isEmpty()) {
+            EmptyView("No sessions", "Tap + to start an agent chat.")
+            return@Column
+        }
+        HorizontalPager(state = pagerState, key = { sessions[it].session.id }, modifier = Modifier.weight(1f)) { page ->
+            val row = sessions[page]
+            Box(modifier = Modifier.fillMaxSize()) {
+                SessionPane(callbacks.sessionViewModel(row), callbacks.snackbarHostState) { status, hasOpenQuestion ->
+                    viewModel.recordSessionStatus(row.session.id, status, hasOpenQuestion)
+                }
             }
-            Text(repositoryName(workspace.repoUrl), style = MaterialTheme.typography.bodyMedium)
-            workspace.creatorName?.let { Text("Created by $it", style = MaterialTheme.typography.bodySmall) }
         }
+    }
+}
+
+/** A tap on a tab moves the pager; a swipe of the pager selects the tab. */
+@Composable
+private fun SyncPagerWithSelection(pagerState: PagerState, sessions: List<SessionRow>, selectedIndex: Int, onSelect: (String) -> Unit) {
+    val currentSessions by rememberUpdatedState(sessions)
+    LaunchedEffect(selectedIndex) {
+        if (selectedIndex < pagerState.pageCount && pagerState.currentPage != selectedIndex) pagerState.animateScrollToPage(selectedIndex)
+    }
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { page -> currentSessions.getOrNull(page)?.let { onSelect(it.session.id) } }
     }
 }
 

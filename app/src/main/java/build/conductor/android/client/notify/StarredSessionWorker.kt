@@ -9,6 +9,7 @@ import build.conductor.android.client.data.AgentStatus
 import build.conductor.android.client.data.ConductorRepository
 import build.conductor.android.client.data.QuestionScan
 import build.conductor.android.client.data.api.ApiException
+import build.conductor.android.client.data.api.SessionStatus
 import build.conductor.android.client.data.settings.StarredSession
 import kotlinx.coroutines.flow.first
 
@@ -20,10 +21,12 @@ class StarredSessionWorker(context: Context, parameters: WorkerParameters) : Cor
         if (container.apiKeyState.first { it != ApiKeyState.Loading } !is ApiKeyState.Present) return Result.success()
         val starred = container.starredSessionStore.snapshot()
         if (starred.isEmpty()) return Result.success()
-        val statuses = fetchStatuses(container.repository, starred.keys)
+        val sessionStatuses = fetchStatuses(container.repository, starred.keys)
+        val workspaceIds = sessionStatuses.mapValues { it.value.workspaceId }
+        val statuses = sessionStatuses.mapValues { AgentStatus.from(it.value.status) }.filterValues { it != AgentStatus.UNKNOWN }
         val scans = scanWorkingSessions(starred.filterKeys { statuses[it] == AgentStatus.WORKING })
-        findFinishedSessions(starred, statuses).forEach { StatusNotifier.notifyFinished(applicationContext, it) }
-        findNewQuestions(starred, scans).forEach { StatusNotifier.notifyQuestion(applicationContext, it) }
+        findFinishedSessions(starred, statuses).forEach { StatusNotifier.notifyFinished(applicationContext, it, workspaceIds.getValue(it.sessionId)) }
+        findNewQuestions(starred, scans).forEach { StatusNotifier.notifyQuestion(applicationContext, it, workspaceIds.getValue(it.sessionId)) }
         container.starredSessionStore.recordStatuses(statuses.mapNotNull { (id, status) -> status.apiValue?.let { id to it } }.toMap())
         container.starredSessionStore.recordQuestionScans(scans)
         return Result.success()
@@ -40,12 +43,12 @@ class StarredSessionWorker(context: Context, parameters: WorkerParameters) : Cor
         }.toMap()
 
     /** A session whose status call fails keeps its last known status until the next check. */
-    private suspend fun fetchStatuses(repository: ConductorRepository, sessionIds: Set<String>): Map<String, AgentStatus> =
+    private suspend fun fetchStatuses(repository: ConductorRepository, sessionIds: Set<String>): Map<String, SessionStatus> =
         sessionIds.mapNotNull { sessionId ->
             try {
-                sessionId to AgentStatus.from(repository.sessionStatus(sessionId).status)
+                sessionId to repository.sessionStatus(sessionId)
             } catch (_: ApiException) {
                 null
             }
-        }.filter { it.second != AgentStatus.UNKNOWN }.toMap()
+        }.toMap()
 }

@@ -20,8 +20,6 @@ data class WorkspacesRoute(val projectId: String, val projectName: String)
 @Serializable
 data class CreateWorkspaceRoute(val projectId: String, val projectName: String)
 
+/** [sessionId] chooses the session tab that opens first. */
 @Serializable
-data class WorkspaceRoute(val workspaceId: String)
-
-@Serializable
-data class SessionRoute(val sessionId: String, val title: String)
+data class WorkspaceRoute(val workspaceId: String, val sessionId: String? = null)

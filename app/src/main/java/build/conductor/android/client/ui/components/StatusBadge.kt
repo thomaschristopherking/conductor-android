@@ -51,9 +51,7 @@ fun SessionStatusBadge(status: AgentStatus, hasOpenQuestion: Boolean, modifier: 
 
 @Composable
 fun WorkspaceStateBadge(state: WorkspaceState, lifecycleStep: String?, modifier: Modifier = Modifier) {
-    val label = state.name.lowercase().replaceFirstChar { it.uppercase() }
-    val text = lifecycleStep?.takeIf { state == WorkspaceState.INITIALIZING || state == WorkspaceState.UPDATING }
-        ?.let { "$label · ${it.replace('_', ' ')}" } ?: label
+    val text = workspaceStateLabel(state, lifecycleStep)
     val tone = when (state) {
         WorkspaceState.READY -> BadgeTone.POSITIVE
         WorkspaceState.INITIALIZING, WorkspaceState.UPDATING -> BadgeTone.ACTIVE
@@ -61,4 +59,11 @@ fun WorkspaceStateBadge(state: WorkspaceState, lifecycleStep: String?, modifier:
         else -> BadgeTone.NEUTRAL
     }
     StatusBadge(text, tone, modifier)
+}
+
+/** The state name, with the lifecycle step while the machine starts or updates. */
+fun workspaceStateLabel(state: WorkspaceState, lifecycleStep: String?): String {
+    val label = state.name.lowercase().replaceFirstChar { it.uppercase() }
+    return lifecycleStep?.takeIf { state == WorkspaceState.INITIALIZING || state == WorkspaceState.UPDATING }
+        ?.let { "$label · ${it.replace('_', ' ')}" } ?: label
 }
