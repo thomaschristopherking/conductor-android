@@ -17,6 +17,7 @@ import build.conductor.android.client.data.api.SentMessage
 import build.conductor.android.client.data.api.Session
 import build.conductor.android.client.data.api.SessionStatus
 import build.conductor.android.client.data.api.Workspace
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.serialization.json.Json
@@ -44,9 +45,18 @@ class FakeConductorRepository : ConductorRepository {
     var sectionsResult: () -> List<Section> = { emptyList() }
     var allWorkspacesResult: (includeArchived: Boolean) -> List<Workspace> = { emptyList() }
     val allWorkspacesRequests = mutableListOf<Boolean>()
+
+    /** While set, the request for all workspaces waits until the test completes it. */
+    var allWorkspacesGate: CompletableDeferred<Unit>? = null
     var favorites = listOf(FavoriteModel("codex", "gpt-6.1-sol", "high"))
     var sessionsInWorkspace = listOf<Session>()
     var sessionStatuses = mutableMapOf<String, String>()
+
+    /** A session in this map reads its own transcript; every other session reads [transcript]. */
+    val sessionTranscripts = mutableMapOf<String, List<Message>>()
+
+    /** While set, a messages request waits until the test completes it. */
+    var messagesGate: CompletableDeferred<Unit>? = null
 
     fun addUserMessage(text: String, clientId: String) = addMessage("userMessage", """{"type":"userMessage","id":"$clientId","message":"$text","state":"sent"}""")
 
@@ -83,6 +93,7 @@ class FakeConductorRepository : ConductorRepository {
 
     override suspend fun allWorkspaces(includeArchived: Boolean): List<Workspace> {
         allWorkspacesRequests += includeArchived
+        allWorkspacesGate?.await()
         return allWorkspacesResult(includeArchived)
     }
 
@@ -118,10 +129,12 @@ class FakeConductorRepository : ConductorRepository {
     override suspend fun messagesAfter(sessionId: String, afterMessageId: String?): Page<Message> {
         messageCursors += afterMessageId
         callOrder += "messages"
+        messagesGate?.await()
         messagesFailure?.let { throw it }
-        val start = afterMessageId?.let { id -> transcript.indexOfFirst { it.id == id } + 1 } ?: 0
-        val page = transcript.drop(start).take(PAGE_SIZE)
-        return Page(page, start, hasMore = start + page.size < transcript.size)
+        val messages = sessionTranscripts[sessionId] ?: transcript
+        val start = afterMessageId?.let { id -> messages.indexOfFirst { it.id == id } + 1 } ?: 0
+        val page = messages.drop(start).take(PAGE_SIZE)
+        return Page(page, start, hasMore = start + page.size < messages.size)
     }
 
     override suspend fun sendMessage(sessionId: String, text: String, messageId: String): SentMessage {

@@ -63,6 +63,7 @@ class WorkspaceDetailViewModel(
     val uiState: StateFlow<WorkspaceDetailUiState> = state.asStateFlow()
     private val events = Channel<WorkspaceEvent>(Channel.BUFFERED)
     val eventFlow: Flow<WorkspaceEvent> = events.receiveAsFlow()
+    private val statusPermits = Semaphore(MAX_PARALLEL_STATUS_CALLS)
 
     init {
         load()
@@ -93,27 +94,62 @@ class WorkspaceDetailViewModel(
 
     private suspend fun fetchDetail() {
         try {
-            val detail = coroutineScope {
-                val workspace = async { repository.workspace(workspaceId) }
-                val sessions = async { withStatuses(repository.sessions(workspaceId)) }
-                WorkspaceDetail(workspace.await(), sessions.await())
+            val detail = fetchSessionsWithStatuses()
+            if (canQuestionsChooseFirstTab(detail.sessions)) {
+                show(detail.copy(sessions = withQuestions(detail.sessions)))
+            } else {
+                show(detail)
+                scanOtherTabsForQuestions(detail.sessions)
             }
-            state.update { it.copy(detail = LoadState.Loaded(detail), isRefreshing = false, selectedSessionId = chooseSession(it.selectedSessionId, detail.sessions)) }
         } catch (exception: ApiException) {
             state.update { it.withFailure(exception) }
         }
     }
 
-    /** One failed status call shows that session as unknown; it does not fail the screen. */
-    private suspend fun withStatuses(sessions: List<Session>): List<SessionRow> = coroutineScope {
-        val permits = Semaphore(MAX_PARALLEL_STATUS_CALLS)
-        sessions.map { session -> async { permits.withPermit { rowFor(session) } } }.awaitAll()
+    private fun show(detail: WorkspaceDetail) = state.update {
+        it.copy(detail = LoadState.Loaded(detail), isRefreshing = false, selectedSessionId = chooseSession(it.selectedSessionId, detail.sessions))
     }
 
-    private suspend fun rowFor(session: Session): SessionRow {
-        val status = statusOf(session.id)
-        return SessionRow(session, status, hasOpenQuestion = status == AgentStatus.WORKING && hasOpenQuestion(session.id))
+    private suspend fun fetchSessionsWithStatuses(): WorkspaceDetail = coroutineScope {
+        val workspace = async { repository.workspace(workspaceId) }
+        val sessions = async { withKnownQuestions(withStatuses(repository.sessions(workspaceId))) }
+        WorkspaceDetail(workspace.await(), sessions.await())
     }
+
+    /** One failed status call shows that session as unknown; it does not fail the screen. */
+    private suspend fun withStatuses(sessions: List<Session>): List<SessionRow> = coroutineScope {
+        sessions.map { session -> async { statusPermits.withPermit { SessionRow(session, statusOf(session.id)) } } }.awaitAll()
+    }
+
+    /** A refresh keeps the question dot of a session that still works until a new scan says otherwise. */
+    private fun withKnownQuestions(rows: List<SessionRow>): List<SessionRow> {
+        val knownIds = currentRows().filter { it.hasOpenQuestion }.map { it.session.id }.toSet()
+        return rows.map { it.copy(hasOpenQuestion = it.status == AgentStatus.WORKING && it.session.id in knownIds) }
+    }
+
+    /** A question decides the first tab only when no tab is open yet and more than one agent works. */
+    private fun canQuestionsChooseFirstTab(rows: List<SessionRow>): Boolean =
+        rows.none { it.session.id == state.value.selectedSessionId } && rows.count { it.status == AgentStatus.WORKING } > 1
+
+    private suspend fun withQuestions(rows: List<SessionRow>): List<SessionRow> = coroutineScope {
+        rows.map { row -> async { if (row.status == AgentStatus.WORKING) row.copy(hasOpenQuestion = scanForQuestion(row)) else row } }.awaitAll()
+    }
+
+    /** The open tab reads its own transcript and reports its question, so only the other tabs need a scan. */
+    private fun scanOtherTabsForQuestions(rows: List<SessionRow>) {
+        val selectedId = state.value.selectedSessionId
+        rows.filter { it.status == AgentStatus.WORKING && it.session.id != selectedId }.forEach { row ->
+            viewModelScope.launch { recordScannedQuestion(row.session.id, scanForQuestion(row)) }
+        }
+    }
+
+    private fun recordScannedQuestion(sessionId: String, hasOpenQuestion: Boolean) = state.update { current ->
+        current.copy(detail = current.detail.mapDetail { detail -> detail.withRow(sessionId) { it.copy(hasOpenQuestion = it.status == AgentStatus.WORKING && hasOpenQuestion) } })
+    }
+
+    private suspend fun scanForQuestion(row: SessionRow): Boolean = statusPermits.withPermit { hasOpenQuestion(row.session.id) }
+
+    private fun currentRows(): List<SessionRow> = (state.value.detail as? LoadState.Loaded)?.value?.sessions.orEmpty()
 
     /** A failed scan shows the session as working; it does not fail the screen. */
     private suspend fun hasOpenQuestion(sessionId: String): Boolean = try {

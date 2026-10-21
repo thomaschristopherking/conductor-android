@@ -12,6 +12,7 @@ import build.conductor.android.client.data.OpenQuestionTracker
 import build.conductor.android.client.data.QuestionScanner
 import build.conductor.android.client.data.api.Session
 import build.conductor.android.client.ui.components.LoadState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -38,14 +39,63 @@ class WorkspaceDetailViewModelTest {
     }
 
     @Test
-    fun `a working session with an open question says so, and only working sessions are scanned`() = runTest {
+    fun `a working session in another tab shows its open question, and only working sessions are scanned`() = runTest {
         repository.addQuestion("t1")
-        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)), initialSessionId = "s2")
         advanceUntilIdle()
 
         val detail = (viewModel.uiState.value.detail as LoadState.Loaded).value
         assertEquals(listOf(true, false), detail.sessions.map { it.hasOpenQuestion })
         assertEquals(listOf<String?>(null), repository.messageCursors)
+    }
+
+    @Test
+    fun `the tabs show before the scan of another tab ends`() = runTest {
+        repository.addQuestion("t1")
+        repository.messagesGate = CompletableDeferred()
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)), initialSessionId = "s2")
+        advanceUntilIdle()
+
+        assertEquals(listOf(false, false), (viewModel.uiState.value.detail as LoadState.Loaded).value.sessions.map { it.hasOpenQuestion })
+
+        repository.messagesGate?.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(listOf(true, false), (viewModel.uiState.value.detail as LoadState.Loaded).value.sessions.map { it.hasOpenQuestion })
+    }
+
+    @Test
+    fun `the open tab is not scanned, because its own pane reads the transcript`() = runTest {
+        repository.addQuestion("t1")
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
+        advanceUntilIdle()
+
+        assertEquals("s1", viewModel.uiState.value.selectedSessionId)
+        assertEquals(emptyList<String?>(), repository.messageCursors)
+    }
+
+    @Test
+    fun `with two working sessions, the scan finishes first, so the session with a question opens`() = runTest {
+        repository.sessionsInWorkspace = listOf(Session("s1", "conductor://1", "One"), Session("s2", "conductor://2", "Two"))
+        repository.sessionStatuses = mutableMapOf("s1" to "working", "s2" to "working")
+        repository.sessionTranscripts["s1"] = emptyList()
+        repository.addQuestion("t1")
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
+        advanceUntilIdle()
+
+        assertEquals("s2", viewModel.uiState.value.selectedSessionId)
+    }
+
+    @Test
+    fun `a refresh keeps the question dot of a session that still works`() = runTest {
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
+        advanceUntilIdle()
+        viewModel.recordSessionStatus("s1", AgentStatus.WORKING, hasOpenQuestion = true)
+
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertEquals(listOf(true, false), (viewModel.uiState.value.detail as LoadState.Loaded).value.sessions.map { it.hasOpenQuestion })
     }
 
     @Test
