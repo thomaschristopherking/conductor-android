@@ -22,6 +22,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // The project has no release key; the debug key lets a phone install the optimised build from a file.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
