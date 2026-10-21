@@ -12,7 +12,6 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -58,13 +57,6 @@ fun HomeScreen(viewModel: HomeViewModel, actions: HomeActions) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { TopAppBar(title = { Text("Workspaces") }, actions = { HomeTopActions(actions) }) },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = actions.onCreateWorkspace,
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("New workspace") },
-            )
-        },
     ) { padding ->
         HomeBody(state, viewModel, actions.onOpenWorkspace, Modifier.padding(padding))
     }
@@ -72,6 +64,7 @@ fun HomeScreen(viewModel: HomeViewModel, actions: HomeActions) {
 
 @Composable
 private fun HomeTopActions(actions: HomeActions) {
+    IconButton(onClick = actions.onCreateWorkspace) { Icon(Icons.Filled.Add, contentDescription = "New workspace") }
     IconButton(onClick = actions.onOpenProjects) { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Projects") }
     IconButton(onClick = actions.onOpenSettings) { Icon(Icons.Filled.Settings, contentDescription = "Settings") }
 }
@@ -99,7 +92,7 @@ private fun HomeBody(state: HomeUiState, viewModel: HomeViewModel, onOpenWorkspa
 @Composable
 internal fun WorkspaceGroupList(groups: List<WorkspaceGroup>, onOpenWorkspace: (Workspace) -> Unit) {
     if (groups.isEmpty()) {
-        EmptyView("No workspaces", "Tap New workspace to start one in the cloud.")
+        EmptyView("No workspaces", "Tap + at the top to start one in the cloud.")
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
