@@ -100,13 +100,13 @@ class SessionViewModelTest {
     }
 
     @Test
-    fun `the first load pages through the whole transcript and reads the status`() = runTest {
+    fun `the first load reads the whole transcript and the status`() = runTest {
         repeat(5) { repository.addAgentText("Step $it") }
 
         val viewModel = openSession()
 
         val state = viewModel.uiState.value
-        assertEquals(listOf(null, "m2", "m4"), repository.messageCursors)
+        assertEquals(listOf<String?>(null), repository.messageCursors)
         assertEquals(5, state.items.size)
         assertEquals(AgentStatus.IDLE, state.status)
         assertEquals("Fix CI", state.title)

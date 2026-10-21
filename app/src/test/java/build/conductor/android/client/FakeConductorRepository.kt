@@ -126,15 +126,14 @@ class FakeConductorRepository : ConductorRepository {
     override suspend fun sessionStatus(sessionId: String): SessionStatus =
         callOrder.add("status").let { _ -> SessionStatus("w1", sessionId, sessionStatuses[sessionId] ?: sessionStatusValue, "2026-10-05T06:00:00Z") }
 
-    override suspend fun messagesAfter(sessionId: String, afterMessageId: String?): Page<Message> {
+    override suspend fun newMessages(sessionId: String, afterMessageId: String?): List<Message> {
         messageCursors += afterMessageId
         callOrder += "messages"
         messagesGate?.await()
         messagesFailure?.let { throw it }
         val messages = sessionTranscripts[sessionId] ?: transcript
         val start = afterMessageId?.let { id -> messages.indexOfFirst { it.id == id } + 1 } ?: 0
-        val page = messages.drop(start).take(PAGE_SIZE)
-        return Page(page, start, hasMore = start + page.size < messages.size)
+        return messages.drop(start)
     }
 
     override suspend fun sendMessage(sessionId: String, text: String, messageId: String): SentMessage {
@@ -153,7 +152,6 @@ class FakeConductorRepository : ConductorRepository {
     companion object {
         const val SESSION_ID = "s1"
         const val VALID_KEY = "valid-key"
-        const val PAGE_SIZE = 2
 
         fun workspace(id: String, name: String, lastActivityAt: String = "2026-10-05T06:00:00Z") = Workspace(
             id = id,

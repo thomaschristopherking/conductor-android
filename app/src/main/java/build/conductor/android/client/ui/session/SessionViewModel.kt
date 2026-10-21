@@ -268,14 +268,7 @@ class SessionViewModel(
         newItems.isNotEmpty()
     }
 
-    private suspend fun fetchNewItems(): List<TranscriptItem> {
-        val added = mutableListOf<TranscriptItem>()
-        do {
-            val page = repository.messagesAfter(sessionId, transcript.lastMessageId)
-            added += transcript.append(page.data)
-        } while (page.hasMore && page.data.isNotEmpty())
-        return added
-    }
+    private suspend fun fetchNewItems(): List<TranscriptItem> = transcript.append(repository.newMessages(sessionId, transcript.lastMessageId))
 
     private fun applyStatus(status: SessionStatus, newItems: List<TranscriptItem>) {
         val agentStatus = AgentStatus.from(status.status)

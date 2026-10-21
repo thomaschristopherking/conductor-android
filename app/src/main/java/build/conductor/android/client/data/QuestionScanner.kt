@@ -13,13 +13,9 @@ data class QuestionScan(val cursor: String? = null, val openQuestionId: String? 
 class QuestionScanner(private val repository: ConductorRepository) {
     /** Reads the messages after [from], because the API cannot return the newest messages first. */
     suspend fun scan(sessionId: String, from: QuestionScan): QuestionScan {
-        var scan = from
-        do {
-            val page = repository.messagesAfter(sessionId, scan.cursor)
-            val openQuestionId = findOpenQuestionId(scan.openQuestionId, TranscriptParser.parse(page.data))
-            scan = QuestionScan(page.data.lastOrNull()?.id ?: scan.cursor, openQuestionId)
-        } while (page.hasMore && page.data.isNotEmpty())
-        return scan
+        val messages = repository.newMessages(sessionId, from.cursor)
+        val openQuestionId = findOpenQuestionId(from.openQuestionId, TranscriptParser.parse(messages))
+        return QuestionScan(messages.lastOrNull()?.id ?: from.cursor, openQuestionId)
     }
 }
 

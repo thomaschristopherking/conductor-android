@@ -67,7 +67,8 @@ interface ConductorApi {
     suspend fun messages(
         @Path("sessionId") sessionId: String,
         @Query("after") after: String? = null,
-        @Query("limit") limit: Int = MESSAGE_PAGE_SIZE,
+        @Query("offset") offset: Int? = null,
+        @Query("limit") limit: Int = PAGE_SIZE,
     ): Page<Message>
 
     @POST("v0/sessions/{sessionId}/messages")
@@ -81,9 +82,8 @@ interface ConductorApi {
 
     companion object {
         const val AUTHORIZATION_HEADER = "Authorization"
-        const val PAGE_SIZE = 100
 
-        /** `docs/API_NOTES.md` records that the live API accepts 200 messages for each request. */
-        const val MESSAGE_PAGE_SIZE = 200
+        /** The live API sends no more than 100 items in one page, also when the request asks for more. */
+        const val PAGE_SIZE = 100
     }
 }
