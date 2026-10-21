@@ -18,7 +18,7 @@ API at `api.conductor.build/v0` does not support is not in scope.
 
 You need:
 
-- JDK 17
+- JDK 21
 - The Android SDK, with `platforms;android-37.0` and `build-tools;37.0.0`
 - `ANDROID_HOME` set to the SDK folder, or a `local.properties` file with
   `sdk.dir=...`

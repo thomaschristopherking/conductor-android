@@ -15,8 +15,15 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
 - **Workspaces of a project.** The same rows as the home screen, for one repository.
   - Swipe a workspace to the left to archive it. An "Undo" button shows for 5 seconds. The app sends the archive request only when the button goes away.
 - **New workspace.** Name, branch, agent, model, effort and a first prompt. Your favourite models from the Conductor app are shortcuts.
-- **Workspace detail.** The sessions of a workspace, each with its agent status. A session whose agent waits on a question shows "Question for you". Create a session, rename the workspace, archive the workspace, or copy and share its Conductor link.
+- **Workspace.** A workspace opens directly at a session. Each session has a tab below the title bar, as in the Conductor app.
+  - Tap a tab, or swipe left or right, to go to a different session.
+  - A spinner on a tab shows that its agent works. A coloured dot shows a question for you. A red dot shows an error.
+  - The "+" tab creates a session. The new session opens in a new tab.
+  - The first tab to open is the session from a notification. If there is no notification, it is the session with a question, then a working session, then the first session.
+  - The menu renames the workspace, archives it, or copies and shares the Conductor link of the open session.
 - **Session.** The transcript as a chat, with markdown and code blocks. A composer at the bottom moves up with the keyboard. "Stop" cancels the agent's turn.
+  - Touch and hold a message to select its text. Each message has a copy button below it.
+  - Code blocks wrap long lines. Each code block has a copy button that copies only the code.
   - The chat opens at the newest message. New messages stay in view while you are at the newest message.
   - When you scroll back to older messages, new messages do not move the chat. A round arrow button takes you back to the newest message. When you send a prompt, the chat goes to the newest message.
   - When the agent asks you a question, the chat shows the question with its options. Choose the options, or type in "Other", then tap "Send answers".
@@ -42,7 +49,7 @@ The app needs Android 8.0 (API 26) or later.
 
 Requirements:
 
-- JDK 17
+- JDK 21. The markdown library contains Java 21 classes, and the Robolectric tests load them.
 - The Android SDK with `platforms;android-37.0` and `build-tools;37.0.0`
 - `ANDROID_HOME` set to the SDK folder, or a `local.properties` file with `sdk.dir=...`
 
@@ -65,6 +72,8 @@ The unit tests run on the JVM. They do not need a device or the network.
 - `ui/session/SessionViewModelTest.kt` tests polling, back-off, sending and cancelling with virtual time.
 - `ui/home/WorkspaceGroupsTest.kt` and `ui/home/HomeViewModelTest.kt` test the grouping by section. `ui/home/WorkspaceGroupListTest.kt` shows the grouped list in Robolectric.
 - `ui/session/TranscriptScrollTest.kt` shows the chat list in Robolectric. It tests the scroll position and the button that goes to the newest message.
+- `ui/session/CodeBlockTest.kt` tests that a long code line wraps, and that the copy buttons copy the code or the full message.
+- `ui/workspace/SessionTabRowTest.kt` and `ui/workspace/WorkspaceDetailViewModelTest.kt` test the session tabs and which tab opens first.
 
 The fixtures in `app/src/test/resources/fixtures/` are scrubbed copies of live API responses. To capture them again, run:
 
@@ -115,10 +124,10 @@ I made these decisions without a person to ask.
 
 - **Not run on a device.** The build machine had no emulator. Layout, keyboard behaviour, dynamic colour and notifications are not checked on a screen.
 - **Write calls are not checked against the live API.** I used the live API for read-only calls, and for one test message that answered a question. Create, rename, archive and cancel are checked against MockWebServer and the OpenAPI spec only.
-- **Long transcripts.** The session screen loads the full transcript when it opens, 100 messages for each request.
+- **Long transcripts.** A session tab loads the full transcript when it opens, 100 messages for each request.
 - **No offline cache.** Each screen loads from the network.
 - **Debug build only.** The APK is signed with the debug key.
-- **Background checks.** Android runs periodic work at most every 15 minutes, and it can delay the work to save battery. The session screen records each status that it sees, so a short turn that you start from the app is caught. A turn that starts and ends between two checks while the app is closed is not caught.
+- **Background checks.** Android runs periodic work at most every 15 minutes, and it can delay the work to save battery. An open session tab records each status that it sees, so a short turn that you start from the app is caught. A turn that starts and ends between two checks while the app is closed is not caught.
 - **Code blocks.** Code blocks have no syntax colours.
 - **Archive by swipe.** If Android stops the app during the 5 seconds of the "Undo" button, the app does not send the archive request. The workspace stays in the list.
 - **Finding a question costs requests.** The status stays "working" while a question waits, so the app reads the transcript to find it. The API returns messages oldest first, so the first look at a long session reads the whole transcript, 100 messages for each request. Later looks read only new messages.
