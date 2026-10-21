@@ -3,13 +3,13 @@ package build.conductor.android.client.ui.session
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -27,14 +27,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import build.conductor.android.client.data.transcript.Delivery
 import build.conductor.android.client.data.transcript.TranscriptItem
-import com.mikepenz.markdown.m3.Markdown
+import build.conductor.android.client.ui.components.CopyButton
 import java.util.Locale
 
 @Composable
 fun TranscriptRow(item: TranscriptItem) {
     when (item) {
         is TranscriptItem.UserPrompt -> UserPromptRow(item)
-        is TranscriptItem.AssistantText -> Markdown(content = item.markdown, modifier = Modifier.fillMaxWidth())
+        is TranscriptItem.AssistantText -> AssistantTextRow(item)
         is TranscriptItem.ToolCall -> ToolCallRow(item)
         is TranscriptItem.ToolResult -> CollapsibleText(item.output.ifBlank { "(no output)" }, isError = item.isError, isMonospace = true)
         is TranscriptItem.TurnEnd -> TurnEndRow(item)
@@ -45,19 +45,28 @@ fun TranscriptRow(item: TranscriptItem) {
 
 @Composable
 private fun UserPromptRow(item: TranscriptItem.UserPrompt) {
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
         Surface(
             color = MaterialTheme.colorScheme.primaryContainer,
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.widthIn(max = 520.dp).padding(start = 32.dp),
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text(item.text, style = MaterialTheme.typography.bodyMedium)
+                SelectionContainer { Text(item.text, style = MaterialTheme.typography.bodyMedium) }
                 deliveryLabel(item.delivery)?.let {
                     Text(it, style = MaterialTheme.typography.labelSmall, modifier = Modifier.align(Alignment.End))
                 }
             }
         }
+        CopyButton(item.text, contentDescription = "Copy message")
+    }
+}
+
+@Composable
+private fun AssistantTextRow(item: TranscriptItem.AssistantText) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SelectionContainer { MessageMarkdown(item.markdown, modifier = Modifier.fillMaxWidth()) }
+        CopyButton(item.markdown, contentDescription = "Copy message")
     }
 }
 
@@ -81,16 +90,18 @@ private fun ToolCallRow(item: TranscriptItem.ToolCall) {
 @Composable
 private fun CollapsibleText(text: String, isError: Boolean, isMonospace: Boolean) {
     var isExpanded by rememberSaveable { mutableStateOf(false) }
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        fontFamily = if (isMonospace) FontFamily.Monospace else null,
-        fontStyle = if (isMonospace) null else FontStyle.Italic,
-        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = if (isExpanded) Int.MAX_VALUE else COLLAPSED_LINES,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.fillMaxWidth().animateContentSize().clickable { isExpanded = !isExpanded }.padding(start = 12.dp),
-    )
+    SelectionContainer {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = if (isMonospace) FontFamily.Monospace else null,
+            fontStyle = if (isMonospace) null else FontStyle.Italic,
+            color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = if (isExpanded) Int.MAX_VALUE else COLLAPSED_LINES,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth().animateContentSize().clickable { isExpanded = !isExpanded }.padding(start = 12.dp),
+        )
+    }
 }
 
 @Composable
