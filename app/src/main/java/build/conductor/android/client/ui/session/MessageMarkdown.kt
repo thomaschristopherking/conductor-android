@@ -1,5 +1,6 @@
 package build.conductor.android.client.ui.session
 
+import android.util.LruCache
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -24,6 +26,8 @@ import com.mikepenz.markdown.compose.elements.MarkdownCodeFence
 import com.mikepenz.markdown.compose.elements.MarkdownParagraph
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.elements.MarkdownCheckBox
+import com.mikepenz.markdown.model.State
+import com.mikepenz.markdown.model.parseMarkdown
 import com.mikepenz.markdown.utils.resolveImageAlt
 import com.mikepenz.markdown.utils.resolveImageLink
 import org.intellij.markdown.MarkdownElementTypes
@@ -33,10 +37,18 @@ import org.intellij.markdown.ast.ASTNode
 /** Markdown whose code blocks wrap long lines and have a copy button, and whose pictures show as [MessageImage]. */
 @Composable
 fun MessageMarkdown(markdown: String, modifier: Modifier = Modifier) {
-    Markdown(content = markdown, components = messageComponents(), imageTransformer = WebImageTransformer, modifier = modifier)
+    val parsed = remember(markdown) { ParsedMessages.parse(markdown) }
+    Markdown(state = parsed, components = MessageComponents, imageTransformer = WebImageTransformer, modifier = modifier)
 }
 
-private fun messageComponents(): MarkdownComponents = markdownComponents(
+/** A message that scrolls back into view draws in its first frame, with no second parse. */
+private object ParsedMessages {
+    private val cache = LruCache<String, State>(MAX_PARSED_MESSAGES)
+
+    fun parse(markdown: String): State = cache[markdown] ?: parseMarkdown(markdown).also { cache.put(markdown, it) }
+}
+
+private val MessageComponents: MarkdownComponents = markdownComponents(
     codeFence = { MarkdownCodeFence(it.content, it.node, it.typography.code) { code, language, style -> CodeBlock(code, language, style) } },
     codeBlock = { MarkdownCodeBlock(it.content, it.node, it.typography.code) { code, language, style -> CodeBlock(code, language, style) } },
     checkbox = { MarkdownCheckBox(it.content, it.node, it.typography.text) },
@@ -83,3 +95,4 @@ internal fun CodeBlock(code: String, language: String?, style: TextStyle) {
 }
 
 internal const val CODE_BLOCK_TAG = "code_block"
+private const val MAX_PARSED_MESSAGES = 200
