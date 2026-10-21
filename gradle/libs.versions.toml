@@ -13,6 +13,7 @@ serialization = "1.11.0"
 okhttp = "5.5.0"
 retrofit = "3.0.0"
 markdownRenderer = "0.45.0"
+coil = "3.6.3"
 junit = "4.13.2"
 turbine = "1.2.1"
 robolectric = "4.17"
@@ -40,6 +41,8 @@ okhttp-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver3", version
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 retrofit-kotlinx-serialization = { module = "com.squareup.retrofit2:converter-kotlinx-serialization", version.ref = "retrofit" }
 markdown-renderer-m3 = { module = "com.mikepenz:multiplatform-markdown-renderer-m3", version.ref = "markdownRenderer" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 junit = { module = "junit:junit", version.ref = "junit" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
