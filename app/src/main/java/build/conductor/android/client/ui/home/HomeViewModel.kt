@@ -3,6 +3,8 @@ package build.conductor.android.client.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import build.conductor.android.client.data.ConductorRepository
+import build.conductor.android.client.data.HomeSnapshot
+import build.conductor.android.client.data.HomeSnapshots
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.Section
 import build.conductor.android.client.data.api.Workspace
@@ -25,13 +27,19 @@ data class HomeUiState(
 )
 
 /** Lists every workspace that the user can see, grouped by the user's sections. */
-class HomeViewModel(private val repository: ConductorRepository) : ViewModel() {
+class HomeViewModel(
+    private val repository: ConductorRepository,
+    private val snapshots: HomeSnapshots = HomeSnapshots.None,
+) : ViewModel() {
     private val state = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = state.asStateFlow()
     private var loadJob: Job? = null
 
     init {
-        load()
+        loadJob = viewModelScope.launch {
+            showSnapshot()
+            fetchGroups()
+        }
     }
 
     fun load() {
@@ -58,11 +66,19 @@ class HomeViewModel(private val repository: ConductorRepository) : ViewModel() {
         loadJob = viewModelScope.launch { fetchGroups() }
     }
 
+    /** The saved list shows until the API answers; it is read first, so an offline start still shows it. */
+    private suspend fun showSnapshot() {
+        val snapshot = snapshots.read() ?: return
+        state.update { it.copy(groups = LoadState.Loaded(groupBySection(snapshot.workspaces, snapshot.sections)), isRefreshing = true) }
+    }
+
     private suspend fun fetchGroups() = coroutineScope {
         val sections = async { fetchSections() }
         try {
             val workspaces = repository.allWorkspaces(state.value.isShowingArchived)
-            showGroups(workspaces, sections.await())
+            val loadedSections = sections.await()
+            showGroups(workspaces, loadedSections)
+            saveSnapshot(workspaces, loadedSections)
         } catch (exception: ApiException) {
             sections.cancel()
             state.update { it.withFailure(exception) }
@@ -80,6 +96,11 @@ class HomeViewModel(private val repository: ConductorRepository) : ViewModel() {
         val groups = groupBySection(workspaces, sections.getOrDefault(emptyList()))
         val sectionsMessage = sections.exceptionOrNull()?.let { "Your sections did not load: ${it.message}" }
         state.update { it.copy(groups = LoadState.Loaded(groups), isRefreshing = false, snackbarMessage = sectionsMessage ?: it.snackbarMessage) }
+    }
+
+    private suspend fun saveSnapshot(workspaces: List<Workspace>, sections: Result<List<Section>>) {
+        if (state.value.isShowingArchived) return
+        snapshots.write(HomeSnapshot(workspaces, sections.getOrNull() ?: return))
     }
 
     private fun HomeUiState.withFailure(exception: ApiException): HomeUiState {

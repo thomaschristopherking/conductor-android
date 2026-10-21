@@ -5,6 +5,8 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import build.conductor.android.client.data.ApiConductorRepository
 import build.conductor.android.client.data.ConductorRepository
+import build.conductor.android.client.data.FileHomeSnapshots
+import build.conductor.android.client.data.HomeSnapshots
 import build.conductor.android.client.data.OpenQuestionTracker
 import build.conductor.android.client.data.QuestionScanner
 import build.conductor.android.client.data.api.createConductorApi
@@ -19,8 +21,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.io.File
 
 /** Creates the app's long-lived objects once. Screens get them through [LocalAppContainer]. */
 class AppContainer(context: Context) {
@@ -52,10 +58,18 @@ class AppContainer(context: Context) {
 
     val openQuestionTracker = OpenQuestionTracker(questionScanner)
 
+    val homeSnapshots: HomeSnapshots = FileHomeSnapshots(File(context.cacheDir, HOME_SNAPSHOT_FILE))
+
+    init {
+        // The first key is the one saved at start; a later key can belong to a different account.
+        applicationScope.launch { apiKeyState.filterNot { it == ApiKeyState.Loading }.drop(1).collect { homeSnapshots.clear() } }
+    }
+
     private companion object {
         const val SETTINGS_FILE = "settings"
         const val STARRED_SESSIONS_FILE = "starred_sessions"
         const val KEYSTORE_ALIAS = "conductor_api_key"
+        const val HOME_SNAPSHOT_FILE = "home_snapshot.json"
     }
 }
 

@@ -4,13 +4,14 @@
 
 A native Android client for [Conductor Cloud](https://conductor.build). Use it to watch and steer your cloud coding agents from a phone.
 
-> **Verification status.** The build machine had no emulator and no device. I verified the app with `./gradlew lint testDebugUnitTest assembleDebug` only. Nobody has opened the app on a real device yet. See [Known limitations](#known-limitations).
+> **Verification status.** The build machine had no emulator and no device. I verified the app with `./gradlew lint testDebugUnitTest assembleRelease` only. Nobody has opened the app on a real device yet. See [Known limitations](#known-limitations).
 
 ## What the app does
 
 - **Settings.** Paste a Conductor API key. The app tests the key with a read-only call (`GET /me`) before it saves the key. The key is encrypted with AES-GCM. The AES key stays in the Android Keystore. You can clear the key.
 - **Colour scheme.** Settings has three colour schemes. "Default" uses your wallpaper colours on Android 12 and later. "Neapolitan" uses strawberry, vanilla and chocolate. "Spumoni" uses pistachio, fior di latte and cherry. Both ice cream schemes have a light and a dark version.
 - **Workspaces (home screen).** All your workspaces, grouped by the sections that you made in the Conductor app. The sections come in the order that the API returns them. Workspaces with no section go under "Other workspaces". Each row shows the name, repository, status badge and last activity. Pull down to refresh. A filter chip shows archived workspaces. If the sections do not load, the list shows all workspaces with no headers and a message.
+  - When the app starts, the list from the last start shows at once. A spinner at the top shows that the app loads the new list. With no connection, the old list stays and a message shows.
 - **Projects.** The list of repositories. The list button on the home screen opens it. A project opens the workspaces of that repository. The "+" button at the top of the home screen asks for a project first.
 - **Workspaces of a project.** The same rows as the home screen, for one repository.
   - Swipe a workspace to the left to archive it. An "Undo" button shows for 5 seconds. The app sends the archive request only when the button goes away.
@@ -20,6 +21,7 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
   - A spinner on a tab shows that its agent works. A coloured dot shows a question for you. A red dot shows an error.
   - The "+" tab creates a session. The new session opens in a new tab.
   - The first tab to open is the session from a notification. If there is no notification, it is the session with a question, then a working session, then the first session.
+  - The tabs show when the status of each session is known. The app then reads the transcripts of the other working sessions to find questions. It waits for those transcripts first only when two or more agents work, because then a question decides the first tab.
   - The menu renames the workspace, archives it, or copies and shares the Conductor link of the open session.
 - **Session.** The transcript as a chat, with markdown and code blocks. A composer at the bottom moves up with the keyboard. "Stop" cancels the agent's turn.
   - Touch and hold a message to select its text. Each message has a copy button below it.
@@ -37,9 +39,9 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
 
 Make sure that you can install apps from unknown sources on the device.
 
-1. Get `dist/conductor-android-debug.apk` from this repository, or from the prerelease on the Releases page.
+1. Get `dist/conductor-android.apk` from this repository, or from the prerelease on the Releases page.
 2. Install it with one of these methods:
-   - With USB debugging: `adb install -r dist/conductor-android-debug.apk`
+   - With USB debugging: `adb install -r dist/conductor-android.apk`
    - Without a computer: copy the APK to the phone, open it in a file manager, and accept the prompt.
 3. Open **Conductor**.
 4. Create an API key at <https://app.conductor.build/home/api-keys>.
@@ -58,9 +60,11 @@ Requirements:
 Commands:
 
 ```bash
-./gradlew lint testDebugUnitTest assembleDebug
-cp app/build/outputs/apk/debug/app-debug.apk dist/conductor-android-debug.apk
+./gradlew lint testDebugUnitTest assembleRelease
+cp app/build/outputs/apk/release/app-release.apk dist/conductor-android.apk
 ```
+
+The release build is smaller and faster than the debug build. R8 shrinks and optimises the code, and Android can compile the app ahead of time. The project has no release key, so the debug key of the build machine signs the release build.
 
 Do not put the API key in the build. The app reads the key only from its encrypted storage on the device.
 
@@ -72,11 +76,11 @@ The unit tests run on the JVM. They do not need a device or the network.
 - `data/transcript/TranscriptParserTest.kt` turns live transcript events into chat rows.
 - `data/ModelCatalogTest.kt` compares the agent and model lists with `docs/openapi.json`. It fails when the spec changes.
 - `ui/session/SessionViewModelTest.kt` tests polling, back-off, sending and cancelling with virtual time.
-- `ui/home/WorkspaceGroupsTest.kt` and `ui/home/HomeViewModelTest.kt` test the grouping by section. `ui/home/WorkspaceGroupListTest.kt` shows the grouped list in Robolectric.
+- `ui/home/WorkspaceGroupsTest.kt` and `ui/home/HomeViewModelTest.kt` test the grouping by section, and the list from the last start. `data/FileHomeSnapshotsTest.kt` tests the file that keeps that list. `ui/home/WorkspaceGroupListTest.kt` shows the grouped list in Robolectric.
 - `ui/session/TranscriptScrollTest.kt` shows the chat list in Robolectric. It tests the scroll position and the button that goes to the newest message.
 - `ui/session/MessageImageTest.kt` tests the card for a picture that is a workspace file.
-- `ui/session/CodeBlockTest.kt` tests that a long code line wraps, and that the copy buttons copy the code or the full message.
-- `ui/workspace/SessionTabRowTest.kt` and `ui/workspace/WorkspaceDetailViewModelTest.kt` test the session tabs and which tab opens first.
+- `ui/session/CodeBlockTest.kt` tests that a message shows in its first frame, that a long code line wraps, and that the copy buttons copy the code or the full message.
+- `ui/workspace/SessionTabRowTest.kt` and `ui/workspace/WorkspaceDetailViewModelTest.kt` test the session tabs, which tab opens first, and which tabs the app scans for questions.
 
 The fixtures in `app/src/test/resources/fixtures/` are scrubbed copies of live API responses. To capture them again, run:
 
@@ -97,7 +101,7 @@ The script sends only `GET` requests. It replaces names, e-mail addresses, repos
 | `app/src/main/.../ui` | Compose screens and view models |
 | `app/src/main/.../notify` | The background check for starred sessions |
 | `scripts/capture_fixtures.py` | Fixture capture |
-| `dist/` | The debug APK |
+| `dist/` | The release APK |
 
 ## Assumptions
 
@@ -125,16 +129,16 @@ I made these decisions without a person to ask.
 
 ## Known limitations
 
-- **Not run on a device.** The build machine had no emulator. Layout, keyboard behaviour, dynamic colour and notifications are not checked on a screen.
+- **Not run on a device.** The build machine had no emulator. Layout, keyboard behaviour, dynamic colour and notifications are not checked on a screen. Nobody has opened the R8 release build on a device yet.
 - **Write calls are not checked against the live API.** I used the live API for read-only calls, and for one test message that answered a question. Create, rename, archive and cancel are checked against MockWebServer and the OpenAPI spec only.
-- **Long transcripts.** A session tab loads the full transcript when it opens, 100 messages for each request.
-- **No offline cache.** Each screen loads from the network.
-- **Debug build only.** The APK is signed with the debug key.
+- **Long transcripts.** A session tab loads the full transcript when it opens, 200 messages for each request.
+- **Little offline cache.** Only the home screen keeps its last list. Every other screen loads from the network.
+- **Debug key.** The debug key of the build machine signs the APK. A build from a different machine has a different key, so Android does not install it over the earlier build. Uninstall the earlier build first.
 - **Background checks.** Android runs periodic work at most every 15 minutes, and it can delay the work to save battery. An open session tab records each status that it sees, so a short turn that you start from the app is caught. A turn that starts and ends between two checks while the app is closed is not caught.
 - **Code blocks.** Code blocks have no syntax colours.
 - **Pictures in the workspace.** An agent usually saves a screenshot as a file on the cloud machine. The API has no endpoint that reads a workspace file, and the workspace preview URL rejects an API key with HTTP 401. So the app shows the file name, not the picture.
 - **Archive by swipe.** If Android stops the app during the 5 seconds of the "Undo" button, the app does not send the archive request. The workspace stays in the list.
-- **Finding a question costs requests.** The status stays "working" while a question waits, so the app reads the transcript to find it. The API returns messages oldest first, so the first look at a long session reads the whole transcript, 100 messages for each request. Later looks read only new messages.
+- **Finding a question costs requests.** The status stays "working" while a question waits, so the app reads the transcript to find it. The API returns messages oldest first, so the first look at a long session reads the whole transcript, 200 messages for each request. Later looks read only new messages.
 - **Codex questions.** I tested questions from Claude sessions only.
 
 ## Contributing

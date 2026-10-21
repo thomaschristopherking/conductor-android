@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,6 +83,10 @@ fun StarButton(state: SessionUiState, onToggle: () -> Unit) {
 @Composable
 private fun SessionBody(state: SessionUiState, viewModel: SessionViewModel) {
     val transcriptScroll = rememberTranscriptScrollState()
+    val form = remember(viewModel, state.questionAnswers, state.isSending) {
+        questionForm(state, viewModel, onSend = { transcriptScroll.followNewest(); viewModel.sendAnswers() })
+    }
+    val openQuestionId = state.openQuestion?.toolUseId
     Column(modifier = Modifier.fillMaxSize().imePadding()) {
         StatusBar(state, onCancel = viewModel::cancel)
         state.connectionProblem?.let { ConnectionBanner(it) }
@@ -90,9 +95,7 @@ private fun SessionBody(state: SessionUiState, viewModel: SessionViewModel) {
                 state.isLoading && state.items.isEmpty() -> LoadingView()
                 state.loadError != null -> ErrorView(state.loadError, viewModel::load)
                 state.items.isEmpty() -> EmptyView("No messages yet", "Send a prompt to start the agent.")
-                else -> Transcript(state.items, transcriptScroll) { item ->
-                    SessionTranscriptRow(item, state, questionForm(state, viewModel, onSend = { transcriptScroll.followNewest(); viewModel.sendAnswers() }))
-                }
+                else -> Transcript(state.items, transcriptScroll) { item -> SessionTranscriptRow(item, openQuestionId, form) }
             }
         }
         HorizontalDivider()
@@ -177,10 +180,10 @@ private fun JumpToNewestButton(isVisible: Boolean, onClick: () -> Unit, modifier
     }
 }
 
-/** The open question shows as a form; every other row draws as usual. */
+/** The open question shows as a form; a row takes no other state, so a key press in the composer does not draw the rows again. */
 @Composable
-private fun SessionTranscriptRow(item: TranscriptItem, state: SessionUiState, form: QuestionForm) {
-    if (item is TranscriptItem.Questions && item.toolUseId == state.openQuestion?.toolUseId) {
+private fun SessionTranscriptRow(item: TranscriptItem, openQuestionId: String?, form: QuestionForm) {
+    if (item is TranscriptItem.Questions && item.toolUseId == openQuestionId) {
         OpenQuestionsCard(item, form)
     } else {
         TranscriptRow(item)

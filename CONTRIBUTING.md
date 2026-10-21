@@ -28,7 +28,7 @@ Clone the repository and run the checks:
 ```bash
 git clone https://github.com/thomaschristopherking/conductor-android.git
 cd conductor-android
-./gradlew lint testDebugUnitTest assembleDebug
+./gradlew lint testDebugUnitTest assembleRelease
 ```
 
 `docs/API_NOTES.md` describes the API and the places where the live API is
@@ -115,7 +115,7 @@ commit it.
 Run the checks:
 
 ```bash
-./gradlew lint testDebugUnitTest assembleDebug
+./gradlew lint testDebugUnitTest assembleRelease
 scripts/check_dco.sh
 ```
 

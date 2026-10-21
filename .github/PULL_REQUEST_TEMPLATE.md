@@ -10,6 +10,6 @@
 ## Checklist
 
 - [ ] Every commit is signed off (`git commit -s`). See [DCO](../DCO).
-- [ ] `./gradlew lint testDebugUnitTest assembleDebug` passes.
+- [ ] `./gradlew lint testDebugUnitTest assembleRelease` passes.
 - [ ] A change in behaviour has a unit test.
 - [ ] No API key, transcript or private repository name is in the change.

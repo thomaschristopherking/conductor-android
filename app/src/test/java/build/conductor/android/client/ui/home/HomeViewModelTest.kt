@@ -5,13 +5,20 @@ package build.conductor.android.client.ui.home
 import build.conductor.android.client.FakeConductorRepository
 import build.conductor.android.client.FakeConductorRepository.Companion.workspace
 import build.conductor.android.client.MainDispatcherRule
+import build.conductor.android.client.data.HomeSnapshot
+import build.conductor.android.client.data.HomeSnapshots
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.Section
 import build.conductor.android.client.ui.components.LoadState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -20,6 +27,8 @@ import java.io.IOException
 class HomeViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
+
+    private val snapshots = MemoryHomeSnapshots()
 
     private val repository = FakeConductorRepository().apply {
         allWorkspacesResult = { listOf(workspace("a", "A"), workspace("b", "B")) }
@@ -58,6 +67,49 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `the saved list shows at once, then the list from the API replaces it`() = runTest {
+        snapshots.saved = HomeSnapshot(listOf(workspace("old", "Old")), emptyList())
+        repository.allWorkspacesGate = CompletableDeferred()
+        val viewModel = HomeViewModel(repository, snapshots)
+        runCurrent()
+
+        assertEquals(listOf("old"), loadedIds(viewModel))
+        assertTrue(viewModel.uiState.value.isRefreshing)
+
+        repository.allWorkspacesGate?.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(listOf("a", "b"), loadedIds(viewModel))
+        assertFalse(viewModel.uiState.value.isRefreshing)
+    }
+
+    @Test
+    fun `an offline start keeps the saved list and shows a message`() = runTest {
+        snapshots.saved = HomeSnapshot(listOf(workspace("old", "Old")), emptyList())
+        repository.allWorkspacesResult = { throw ApiException.Offline(IOException()) }
+
+        val viewModel = HomeViewModel(repository, snapshots)
+        advanceUntilIdle()
+
+        assertEquals(listOf("old"), loadedIds(viewModel))
+        assertNotNull(viewModel.uiState.value.snackbarMessage)
+    }
+
+    @Test
+    fun `the list from the API is saved for the next start, but the archived list is not`() = runTest {
+        val viewModel = HomeViewModel(repository, snapshots)
+        advanceUntilIdle()
+        val saved = snapshots.saved
+
+        viewModel.setShowingArchived(true)
+        advanceUntilIdle()
+
+        assertEquals(listOf("a", "b"), saved?.workspaces?.map { it.id })
+        assertEquals(listOf("s1"), saved?.sections?.map { it.id })
+        assertSame(saved, snapshots.saved)
+    }
+
+    @Test
     fun `show archived reloads with includeArchived`() = runTest {
         val viewModel = HomeViewModel(repository)
         advanceUntilIdle()
@@ -67,5 +119,22 @@ class HomeViewModelTest {
 
         assertTrue(viewModel.uiState.value.isShowingArchived)
         assertEquals(listOf(false, true), repository.allWorkspacesRequests)
+    }
+
+    private fun loadedIds(viewModel: HomeViewModel): List<String> =
+        (viewModel.uiState.value.groups as LoadState.Loaded).value.flatMap { group -> group.workspaces.map { it.id } }.distinct()
+}
+
+private class MemoryHomeSnapshots : HomeSnapshots {
+    var saved: HomeSnapshot? = null
+
+    override suspend fun read(): HomeSnapshot? = saved
+
+    override suspend fun write(snapshot: HomeSnapshot) {
+        saved = snapshot
+    }
+
+    override suspend fun clear() {
+        saved = null
     }
 }

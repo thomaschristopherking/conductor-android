@@ -66,7 +66,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
         }
         composable<HomeRoute> {
             HomeScreen(
-                viewModel = viewModel { HomeViewModel(container.repository) },
+                viewModel = viewModel { HomeViewModel(container.repository, container.homeSnapshots) },
                 actions = HomeActions(
                     onOpenWorkspace = { navController.navigate(WorkspaceRoute(it.id)) },
                     onCreateWorkspace = { navController.navigate(ChooseProjectRoute) },
