@@ -18,7 +18,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -82,13 +81,9 @@ fun WorkspacesScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onCreateWorkspace,
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("New workspace") },
+                actions = {
+                    IconButton(onClick = onCreateWorkspace) { Icon(Icons.Filled.Add, contentDescription = "New workspace") }
+                },
             )
         },
     ) { padding ->
@@ -133,7 +128,7 @@ private class WorkspaceActions(
 private fun WorkspaceList(workspaces: List<Workspace>, state: WorkspacesUiState, actions: WorkspaceActions) {
     val visibleWorkspaces = workspaces.filterNot { it.id in state.archivingIds }
     if (visibleWorkspaces.isEmpty()) {
-        EmptyView("No workspaces", "Tap New workspace to start one in the cloud.")
+        EmptyView("No workspaces", "Tap + at the top to start one in the cloud.")
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
