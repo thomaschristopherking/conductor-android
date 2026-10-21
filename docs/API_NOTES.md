@@ -29,7 +29,7 @@ A project contains workspaces. A workspace contains sessions. A session contains
 ## Pagination and errors
 
 - List endpoints take `limit` and `offset`. They return `{ "data": [...], "offset": n, "hasMore": bool }`.
-- The default `limit` is 5. The spec does not say this. The app always sends `limit=100`, and follows `hasMore`.
+- The default `limit` is 5. The spec does not say this. The app always sends `limit=100`, or `limit=200` for messages, and follows `hasMore`.
 - An error body is a `StructuredError`. Only `userMessage` is required. The live API also sends `code`, `source`, `traceId` and sometimes `details`.
 - The live API returns 404 with `code: "NOT_FOUND"` and 400 with `code: "INVALID_REQUEST"`.
 - The spec does not document HTTP 429. The app treats 429 and 5xx as errors that the user can retry.

@@ -163,7 +163,9 @@ class ConductorApiTest {
         assertTrue(firstPage.hasMore)
         assertTrue(next.data.first().sessionIndex > firstPage.data.last().sessionIndex)
         assertTrue(allKinds.data.map { it.type }.containsAll(listOf("userMessage", "agent")))
-        assertNull(server.takeRequest().url.queryParameter("after"))
+        val firstRequest = server.takeRequest().url
+        assertNull(firstRequest.queryParameter("after"))
+        assertEquals("200", firstRequest.queryParameter("limit"))
         assertEquals(firstPage.data.last().id, server.takeRequest().url.queryParameter("after"))
     }
 
