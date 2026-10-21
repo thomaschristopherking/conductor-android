@@ -3,10 +3,12 @@ package build.conductor.android.client.data.api
 import app.cash.turbine.test
 import build.conductor.android.client.Fixtures
 import build.conductor.android.client.data.ApiConductorRepository
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.RecordedRequest
@@ -17,6 +19,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class ConductorApiTest {
     private val server = MockWebServer()
@@ -25,7 +29,7 @@ class ConductorApiTest {
     @Before
     fun setUp() {
         server.start()
-        repository = ApiConductorRepository(createConductorApi(apiKey = { TEST_KEY }, baseUrl = server.url("/"), retryDelay = {}))
+        repository = ApiConductorRepository(createConductorApi(apiKey = { TEST_KEY }, baseUrl = server.url("/"), retryDelay = {}), ONE_COPY)
     }
 
     @After
@@ -151,22 +155,24 @@ class ConductorApiTest {
     }
 
     @Test
-    fun `messages fixtures parse and polling passes the after cursor`() = runTest {
-        enqueueFixture("messages_page.json")
-        enqueueFixture("messages_after.json")
+    fun `messages fixtures parse and a later read follows the after cursor`() = runTest {
         enqueueFixture("messages_all_kinds.json")
+        enqueueFixture("messages_after.json")
+        enqueueJson(EMPTY_LAST_PAGE)
 
-        val firstPage = repository.messagesAfter("s1", afterMessageId = null)
-        val next = repository.messagesAfter("s1", afterMessageId = firstPage.data.last().id)
-        val allKinds = repository.messagesAfter("s1", afterMessageId = null)
+        val transcript = repository.newMessages("s1", afterMessageId = null)
+        val newer = repository.newMessages("s1", afterMessageId = transcript.last().id)
 
-        assertTrue(firstPage.hasMore)
-        assertTrue(next.data.first().sessionIndex > firstPage.data.last().sessionIndex)
-        assertTrue(allKinds.data.map { it.type }.containsAll(listOf("userMessage", "agent")))
-        val firstRequest = server.takeRequest().url
-        assertNull(firstRequest.queryParameter("after"))
-        assertEquals("200", firstRequest.queryParameter("limit"))
-        assertEquals(firstPage.data.last().id, server.takeRequest().url.queryParameter("after"))
+        assertTrue(transcript.map { it.type }.containsAll(listOf("userMessage", "agent")))
+        assertEquals(5, newer.size)
+        val first = server.takeRequest().url
+        assertNull(first.queryParameter("after"))
+        assertEquals("0", first.queryParameter("offset"))
+        assertEquals("100", first.queryParameter("limit"))
+        assertEquals(transcript.last().id, server.takeRequest().url.queryParameter("after"))
+        val followUp = server.takeRequest().url
+        assertEquals(newer.last().id, followUp.queryParameter("after"))
+        assertNull(followUp.queryParameter("offset"))
     }
 
     @Test
@@ -252,7 +258,7 @@ class ApiErrorMappingTest {
     @Before
     fun setUp() {
         server.start()
-        repository = ApiConductorRepository(createConductorApi(apiKey = { "key" }, baseUrl = server.url("/"), retryDelay = {}))
+        repository = ApiConductorRepository(createConductorApi(apiKey = { "key" }, baseUrl = server.url("/"), retryDelay = {}), ONE_COPY)
     }
 
     @After
@@ -291,7 +297,7 @@ class ApiErrorMappingTest {
         enqueue(400, Fixtures.read("error_400.json"))
 
         val notFound = runCatching { repository.sessionStatus("missing") }.exceptionOrNull() as ApiException.Client
-        val badRequest = runCatching { repository.messagesAfter("s1", "x") }.exceptionOrNull() as ApiException.Client
+        val badRequest = runCatching { repository.newMessages("s1", "x") }.exceptionOrNull() as ApiException.Client
 
         assertEquals("Session not found", notFound.message)
         assertEquals("NOT_FOUND", notFound.code)
@@ -340,5 +346,103 @@ class ApiErrorMappingTest {
 
     private fun enqueue(code: Int, body: String) {
         server.enqueue(MockResponse.Builder().code(code).body(body).build())
+    }
+}
+
+/** Hedging starts copies on a timer, and `runTest` skips timers while a request waits, so request counts need one copy. */
+private val ONE_COPY = HedgePolicy(delayMillis = 0, maxCopies = 1)
+
+class TranscriptWavesTest {
+    private val server = MockWebServer()
+    private val repository by lazy { ApiConductorRepository(createConductorApi(apiKey = { "key" }, baseUrl = server.url("/"), retryDelay = {}), ONE_COPY) }
+
+    @Before
+    fun setUp() = server.start()
+
+    @After
+    fun tearDown() {
+        server.close()
+    }
+
+    @Test
+    fun `the first read gets the first page alone, then eight pages at a time`() = runTest {
+        server.dispatcher = TranscriptDispatcher(messageCount = 250, maxPageSize = 100)
+
+        val messages = repository.newMessages("s1", afterMessageId = null)
+
+        assertEquals((1..250).map { "m$it" }, messages.map { it.id })
+        val offsets = List(server.requestCount) { server.takeRequest().url.queryParameter("offset")!!.toInt() }
+        assertEquals(0, offsets.first())
+        assertEquals((1..8).map { it * 100 }.toSet(), offsets.drop(1).toSet())
+    }
+
+    @Test
+    fun `a page shorter than asked ends its wave, so no message is lost or read twice`() = runTest {
+        server.dispatcher = TranscriptDispatcher(messageCount = 120, maxPageSize = 30)
+
+        val messages = repository.newMessages("s1", afterMessageId = null)
+
+        assertEquals((1..120).map { "m$it" }, messages.map { it.id })
+    }
+
+    /** Serves a transcript by `offset` and `limit`, and never sends more than [maxPageSize] messages in one page. */
+    private class TranscriptDispatcher(private val messageCount: Int, private val maxPageSize: Int) : Dispatcher() {
+        override fun dispatch(request: RecordedRequest): MockResponse {
+            val offset = request.url.queryParameter("offset")!!.toInt()
+            val limit = minOf(request.url.queryParameter("limit")!!.toInt(), maxPageSize)
+            val indexes = (offset + 1..minOf(offset + limit, messageCount)).toList()
+            val data = indexes.joinToString(",") { """{"id":"m$it","sessionId":"s1","sessionIndex":$it,"type":"agent","content":{},"receivedAt":"2026-10-21T00:00:00Z"}""" }
+            val body = """{"data":[$data],"offset":$offset,"hasMore":${offset + indexes.size < messageCount}}"""
+            return MockResponse.Builder().setHeader("Content-Type", "application/json").body(body).build()
+        }
+    }
+}
+
+class HedgedRequestTest {
+    private val server = MockWebServer()
+    private val repository by lazy {
+        ApiConductorRepository(createConductorApi(apiKey = { "key" }, baseUrl = server.url("/"), retryDelay = {}), HedgePolicy(delayMillis = 100, maxCopies = 3))
+    }
+
+    @Before
+    fun setUp() = server.start()
+
+    @After
+    fun tearDown() {
+        server.close()
+    }
+
+    @Test
+    fun `a slow read gets a second copy, and the fast copy answers`() = runBlocking {
+        val statusRequests = AtomicInteger()
+        server.dispatcher = jsonDispatcher { if (statusRequests.incrementAndGet() == 1) SLOW_MILLIS else 0 }
+
+        val startNanos = System.nanoTime()
+        val status = repository.sessionStatus("s1")
+
+        assertEquals("working", status.status)
+        assertEquals(2, statusRequests.get())
+        assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos) < SLOW_MILLIS)
+    }
+
+    @Test
+    fun `a slow write is sent once`() = runBlocking {
+        server.dispatcher = jsonDispatcher { 500 }
+
+        repository.cancelSession("s1")
+
+        assertEquals(1, server.requestCount)
+    }
+
+    private fun jsonDispatcher(headersDelayMillis: () -> Long) = object : Dispatcher() {
+        override fun dispatch(request: RecordedRequest): MockResponse = MockResponse.Builder()
+            .headersDelay(headersDelayMillis(), TimeUnit.MILLISECONDS)
+            .setHeader("Content-Type", "application/json")
+            .body("""{"workspaceId":"w1","sessionId":"s1","status":"working","updatedAt":"2026-10-21T00:00:00Z","canceledQueuedMessages":0}""")
+            .build()
+    }
+
+    private companion object {
+        const val SLOW_MILLIS = 5_000L
     }
 }

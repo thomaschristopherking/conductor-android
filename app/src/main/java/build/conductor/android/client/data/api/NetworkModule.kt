@@ -1,6 +1,7 @@
 package build.conductor.android.client.data.api
 
 import kotlinx.serialization.json.Json
+import okhttp3.Dispatcher
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
@@ -38,6 +39,7 @@ private fun createHttpClient(apiKey: () -> String?, retryDelay: (Long) -> Unit):
         .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
         // OkHttp would otherwise resend a POST after some connection failures, and creating a workspace is not idempotent.
         .retryOnConnectionFailure(false)
+        .dispatcher(Dispatcher().apply { maxRequestsPerHost = MAX_REQUESTS_PER_HOST })
         .addInterceptor(AuthInterceptor(apiKey))
         .addInterceptor(RetryInterceptor(retryDelay))
         .build()
@@ -98,3 +100,6 @@ class RetryInterceptor(
 }
 
 private const val TIMEOUT_SECONDS = 30L
+
+/** Every request goes to one host, and with the OkHttp default of 5 a hedged copy waits behind the slow copies. */
+private const val MAX_REQUESTS_PER_HOST = 64

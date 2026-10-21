@@ -10,6 +10,7 @@ import build.conductor.android.client.data.AgentStatus
 import build.conductor.android.client.data.ModelSelection
 import build.conductor.android.client.data.OpenQuestionTracker
 import build.conductor.android.client.data.QuestionScanner
+import build.conductor.android.client.data.RecentCache
 import build.conductor.android.client.data.api.Session
 import build.conductor.android.client.ui.components.LoadState
 import kotlinx.coroutines.CompletableDeferred
@@ -36,6 +37,27 @@ class WorkspaceDetailViewModelTest {
         val detail = (viewModel.uiState.value.detail as LoadState.Loaded).value
         assertEquals(listOf(AgentStatus.WORKING, AgentStatus.ERROR), detail.sessions.map { it.status })
         assertEquals("Workspace w1", detail.workspace.name)
+    }
+
+    @Test
+    fun `a workspace that opens again shows its last tabs at once while they refresh`() = runTest {
+        val details = RecentCache<String, WorkspaceDetail>(maxEntries = 4)
+        WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)), details = details)
+        advanceUntilIdle()
+        repository.sessionStatuses = mutableMapOf("s1" to "idle", "s2" to "idle")
+        repository.sessionsGate = CompletableDeferred()
+
+        val reopened = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)), details = details)
+        reopened.onVisible()
+        advanceUntilIdle()
+
+        assertEquals(listOf(AgentStatus.WORKING, AgentStatus.ERROR), (reopened.uiState.value.detail as LoadState.Loaded).value.sessions.map { it.status })
+        assertEquals(true, reopened.uiState.value.isRefreshing)
+        repository.sessionsGate?.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf(AgentStatus.IDLE, AgentStatus.IDLE), (reopened.uiState.value.detail as LoadState.Loaded).value.sessions.map { it.status })
+        assertEquals(false, reopened.uiState.value.isRefreshing)
+        assertEquals(2, repository.sessionsRequestCount)
     }
 
     @Test

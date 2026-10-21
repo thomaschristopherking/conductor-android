@@ -11,7 +11,7 @@ class QuestionScannerTest {
     private val scanner = QuestionScanner(repository)
 
     @Test
-    fun `a scan pages through the transcript and finds the open question`() = runTest {
+    fun `a first scan reads the whole transcript and finds the open question`() = runTest {
         repository.addAgentText("One")
         repository.addAgentText("Two")
         repository.addQuestion("t1")
@@ -19,7 +19,7 @@ class QuestionScannerTest {
         val scan = scanner.scan(FakeConductorRepository.SESSION_ID, QuestionScan())
 
         assertEquals(QuestionScan(cursor = "m3", openQuestionId = "t1"), scan)
-        assertEquals(listOf(null, "m2"), repository.messageCursors)
+        assertEquals(listOf<String?>(null), repository.messageCursors)
     }
 
     @Test
