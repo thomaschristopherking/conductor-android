@@ -24,6 +24,8 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
 - **Session.** The transcript as a chat, with markdown and code blocks. A composer at the bottom moves up with the keyboard. "Stop" cancels the agent's turn.
   - Touch and hold a message to select its text. Each message has a copy button below it.
   - Code blocks wrap long lines. Each code block has a copy button that copies only the code.
+  - A picture from a web address (`https://...`) shows in the message. Tap it to open it in the browser.
+  - A picture from a file on the cloud machine shows as a card with the file name. The public API cannot send workspace files, so the phone cannot show the picture.
   - The chat opens at the newest message. New messages stay in view while you are at the newest message.
   - When you scroll back to older messages, new messages do not move the chat. A round arrow button takes you back to the newest message. When you send a prompt, the chat goes to the newest message.
   - When the agent asks you a question, the chat shows the question with its options. Choose the options, or type in "Other", then tap "Send answers".
@@ -72,6 +74,7 @@ The unit tests run on the JVM. They do not need a device or the network.
 - `ui/session/SessionViewModelTest.kt` tests polling, back-off, sending and cancelling with virtual time.
 - `ui/home/WorkspaceGroupsTest.kt` and `ui/home/HomeViewModelTest.kt` test the grouping by section. `ui/home/WorkspaceGroupListTest.kt` shows the grouped list in Robolectric.
 - `ui/session/TranscriptScrollTest.kt` shows the chat list in Robolectric. It tests the scroll position and the button that goes to the newest message.
+- `ui/session/MessageImageTest.kt` tests the card for a picture that is a workspace file.
 - `ui/session/CodeBlockTest.kt` tests that a long code line wraps, and that the copy buttons copy the code or the full message.
 - `ui/workspace/SessionTabRowTest.kt` and `ui/workspace/WorkspaceDetailViewModelTest.kt` test the session tabs and which tab opens first.
 
@@ -129,6 +132,7 @@ I made these decisions without a person to ask.
 - **Debug build only.** The APK is signed with the debug key.
 - **Background checks.** Android runs periodic work at most every 15 minutes, and it can delay the work to save battery. An open session tab records each status that it sees, so a short turn that you start from the app is caught. A turn that starts and ends between two checks while the app is closed is not caught.
 - **Code blocks.** Code blocks have no syntax colours.
+- **Pictures in the workspace.** An agent usually saves a screenshot as a file on the cloud machine. The API has no endpoint that reads a workspace file, and the workspace preview URL rejects an API key with HTTP 401. So the app shows the file name, not the picture.
 - **Archive by swipe.** If Android stops the app during the 5 seconds of the "Undo" button, the app does not send the archive request. The workspace stays in the list.
 - **Finding a question costs requests.** The status stays "working" while a question waits, so the app reads the transcript to find it. The API returns messages oldest first, so the first look at a long session reads the whole transcript, 100 messages for each request. Later looks read only new messages.
 - **Codex questions.** I tested questions from Claude sessions only.
