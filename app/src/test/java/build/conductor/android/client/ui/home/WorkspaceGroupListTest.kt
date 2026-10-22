@@ -29,7 +29,7 @@ class WorkspaceGroupListTest {
             WorkspaceGroup("s1", "Interop", listOf(workspace("a", "Fix the importer"))),
             WorkspaceGroup("other", "Other workspaces", listOf(workspace("b", "Update the docs"))),
         )
-        composeRule.setContent { WorkspaceGroupList(groups, onOpenWorkspace = {}) }
+        composeRule.setContent { WorkspaceGroupList(groups, onOpenWorkspace = {}, onArchive = {}) }
 
         val interopTop = composeRule.onNodeWithText("Interop").assertIsDisplayed().fetchSemanticsNode().boundsInRoot.top
         val rowTop = composeRule.onNodeWithText("Fix the importer").fetchSemanticsNode().boundsInRoot.top
@@ -41,7 +41,7 @@ class WorkspaceGroupListTest {
     fun `a tap on a workspace opens it`() {
         var opened: String? = null
         composeRule.setContent {
-            WorkspaceGroupList(listOf(WorkspaceGroup("other", null, listOf(workspace("a", "Fix the importer")))), onOpenWorkspace = { opened = it.id })
+            WorkspaceGroupList(listOf(WorkspaceGroup("other", null, listOf(workspace("a", "Fix the importer")))), onOpenWorkspace = { opened = it.id }, onArchive = {})
         }
 
         composeRule.onNodeWithText("Fix the importer").performClick()

@@ -8,6 +8,7 @@ import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Response
+import retrofit2.Invocation
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.io.IOException
@@ -41,6 +42,7 @@ private fun createHttpClient(apiKey: () -> String?, retryDelay: (Long) -> Unit):
         .retryOnConnectionFailure(false)
         .dispatcher(Dispatcher().apply { maxRequestsPerHost = MAX_REQUESTS_PER_HOST })
         .addInterceptor(AuthInterceptor(apiKey))
+        .addInterceptor(SlowCallInterceptor())
         .addInterceptor(RetryInterceptor(retryDelay))
         .build()
 
@@ -53,6 +55,20 @@ class AuthInterceptor(private val apiKey: () -> String?) : Interceptor {
             return chain.proceed(request)
         }
         return chain.proceed(request.newBuilder().header(ConductorApi.AUTHORIZATION_HEADER, bearer(key)).build())
+    }
+}
+
+/** Marks an API method that the server can take longer than the normal read timeout to answer. */
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class SlowCall
+
+/** Gives a [SlowCall] method a longer read timeout. */
+class SlowCallInterceptor : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val method = chain.request().tag(Invocation::class.java)?.method()
+        val slowChain = if (method?.isAnnotationPresent(SlowCall::class.java) == true) chain.withReadTimeout(SLOW_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS) else chain
+        return slowChain.proceed(chain.request())
     }
 }
 
@@ -100,6 +116,9 @@ class RetryInterceptor(
 }
 
 private const val TIMEOUT_SECONDS = 30L
+
+/** An archive of a large workspace stops its machine first; a small idle workspace took 12 seconds on 2026-10-22. */
+private const val SLOW_CALL_TIMEOUT_SECONDS = 120
 
 /** Every request goes to one host, and with the OkHttp default of 5 a hedged copy waits behind the slow copies. */
 private const val MAX_REQUESTS_PER_HOST = 64

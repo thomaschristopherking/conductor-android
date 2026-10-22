@@ -40,6 +40,7 @@ interface ConductorApi {
     @POST("v0/workspaces/{workspaceId}/rename")
     suspend fun renameWorkspace(@Path("workspaceId") workspaceId: String, @Body request: RenameRequest): Workspace
 
+    @SlowCall
     @POST("v0/workspaces/{workspaceId}/archive")
     suspend fun archiveWorkspace(@Path("workspaceId") workspaceId: String): ArchivedWorkspace
 

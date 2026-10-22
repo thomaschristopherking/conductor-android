@@ -10,11 +10,17 @@ import build.conductor.android.client.data.HomeSnapshots
 import build.conductor.android.client.data.OpenQuestionTracker
 import build.conductor.android.client.data.QuestionScanner
 import build.conductor.android.client.data.RecentCache
+import build.conductor.android.client.data.WorkspaceArchiver
 import build.conductor.android.client.data.api.createConductorApi
+import build.conductor.android.client.data.github.ApiGitHubRepository
+import build.conductor.android.client.data.github.GitHubRepository
+import build.conductor.android.client.data.github.createGitHubApi
 import build.conductor.android.client.data.settings.AesGcmCipher
-import build.conductor.android.client.data.settings.ApiKeyStore
 import build.conductor.android.client.data.settings.AppearanceStore
 import build.conductor.android.client.data.settings.ColorSchemeChoice
+import build.conductor.android.client.data.settings.SavedSecret
+import build.conductor.android.client.data.settings.SecretStore
+import build.conductor.android.client.data.settings.asSavedSecret
 import build.conductor.android.client.data.settings.WorkspaceSubscriptionStore
 import build.conductor.android.client.data.settings.androidKeystoreKey
 import build.conductor.android.client.data.transcript.TranscriptSnapshot
@@ -40,12 +46,23 @@ class AppContainer(context: Context) {
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val settingsDataStore = PreferenceDataStoreFactory.create { context.preferencesDataStoreFile(SETTINGS_FILE) }
     private val keystoreKey by lazy { androidKeystoreKey(KEYSTORE_ALIAS) }
+    private val secretCipher = AesGcmCipher { keystoreKey }
 
-    val apiKeyStore = ApiKeyStore(settingsDataStore, AesGcmCipher { keystoreKey })
+    val apiKeyStore = SecretStore(settingsDataStore, secretCipher, SecretStore.API_KEY)
 
-    val apiKeyState: StateFlow<ApiKeyState> = apiKeyStore.apiKey
+    val apiKeyState: StateFlow<ApiKeyState> = apiKeyStore.secret
         .map { key -> if (key.isNullOrBlank()) ApiKeyState.Missing else ApiKeyState.Present(key) }
         .stateIn(applicationScope, SharingStarted.Eagerly, ApiKeyState.Loading)
+
+    val gitHubTokenStore = SecretStore(settingsDataStore, secretCipher, SecretStore.GITHUB_TOKEN)
+
+    val gitHubToken: StateFlow<SavedSecret> = gitHubTokenStore.secret.asSavedSecret()
+        .stateIn(applicationScope, SharingStarted.Eagerly, SavedSecret.Loading)
+
+    /** Waits for DataStore, so a screen does not ask for a token that is saved. */
+    val isGitHubConnected: Flow<Boolean> = gitHubToken.filterNot { it == SavedSecret.Loading }.map { it is SavedSecret.Present }
+
+    val gitHubRepository: GitHubRepository = ApiGitHubRepository(createGitHubApi(token = { (gitHubToken.value as? SavedSecret.Present)?.value }))
 
     val appearanceStore = AppearanceStore(settingsDataStore)
 
@@ -67,6 +84,8 @@ class AppContainer(context: Context) {
     val repository: ConductorRepository = ApiConductorRepository(
         createConductorApi(apiKey = { (apiKeyState.value as? ApiKeyState.Present)?.apiKey }),
     )
+
+    val workspaceArchiver = WorkspaceArchiver(repository, CoroutineScope(applicationScope.coroutineContext + Dispatchers.Main.immediate))
 
     val questionScanner = QuestionScanner(repository)
 

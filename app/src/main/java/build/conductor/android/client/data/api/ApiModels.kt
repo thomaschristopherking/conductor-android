@@ -35,6 +35,8 @@ data class Workspace(
     val createdAt: String,
     val deepLink: String,
     val projectId: String? = null,
+    /** The number in the Conductor web link of the workspace, `/w/{number}`. */
+    val number: Int? = null,
     val lifecycleStep: String? = null,
     val creatorId: String? = null,
     val creatorName: String? = null,

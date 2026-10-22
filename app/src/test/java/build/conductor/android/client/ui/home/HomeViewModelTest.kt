@@ -7,6 +7,7 @@ import build.conductor.android.client.FakeConductorRepository.Companion.workspac
 import build.conductor.android.client.MainDispatcherRule
 import build.conductor.android.client.data.HomeSnapshot
 import build.conductor.android.client.data.HomeSnapshots
+import build.conductor.android.client.data.WorkspaceArchiver
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.Section
 import build.conductor.android.client.ui.components.LoadState
@@ -37,7 +38,7 @@ class HomeViewModelTest {
 
     @Test
     fun `workspaces load grouped by section`() = runTest {
-        val viewModel = HomeViewModel(repository)
+        val viewModel = HomeViewModel(repository, WorkspaceArchiver(repository, backgroundScope))
         advanceUntilIdle()
 
         val groups = (viewModel.uiState.value.groups as LoadState.Loaded).value
@@ -45,10 +46,23 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `a workspace archived on another screen leaves the home list, and an empty section goes away`() = runTest {
+        val archiver = WorkspaceArchiver(repository, backgroundScope)
+        val viewModel = HomeViewModel(repository, archiver)
+        advanceUntilIdle()
+
+        archiver.archive(workspace("a", "A"))
+        runCurrent()
+
+        val groups = (viewModel.uiState.value.visibleGroups as LoadState.Loaded).value
+        assertEquals(listOf("b"), groups.flatMap { group -> group.workspaces.map { it.id } })
+    }
+
+    @Test
     fun `a sections failure still lists every workspace and shows a message`() = runTest {
         repository.sectionsResult = { throw ApiException.Server(503, "down") }
 
-        val viewModel = HomeViewModel(repository)
+        val viewModel = HomeViewModel(repository, WorkspaceArchiver(repository, backgroundScope))
         advanceUntilIdle()
 
         val groups = (viewModel.uiState.value.groups as LoadState.Loaded).value
@@ -60,7 +74,7 @@ class HomeViewModelTest {
     fun `a workspaces failure shows an error state`() = runTest {
         repository.allWorkspacesResult = { throw ApiException.Offline(IOException()) }
 
-        val viewModel = HomeViewModel(repository)
+        val viewModel = HomeViewModel(repository, WorkspaceArchiver(repository, backgroundScope))
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.groups is LoadState.Failed)
@@ -70,7 +84,7 @@ class HomeViewModelTest {
     fun `the saved list shows at once, then the list from the API replaces it`() = runTest {
         snapshots.saved = HomeSnapshot(listOf(workspace("old", "Old")), emptyList())
         repository.allWorkspacesGate = CompletableDeferred()
-        val viewModel = HomeViewModel(repository, snapshots)
+        val viewModel = HomeViewModel(repository, WorkspaceArchiver(repository, backgroundScope), snapshots)
         runCurrent()
 
         assertEquals(listOf("old"), loadedIds(viewModel))
@@ -88,7 +102,7 @@ class HomeViewModelTest {
         snapshots.saved = HomeSnapshot(listOf(workspace("old", "Old")), emptyList())
         repository.allWorkspacesResult = { throw ApiException.Offline(IOException()) }
 
-        val viewModel = HomeViewModel(repository, snapshots)
+        val viewModel = HomeViewModel(repository, WorkspaceArchiver(repository, backgroundScope), snapshots)
         advanceUntilIdle()
 
         assertEquals(listOf("old"), loadedIds(viewModel))
@@ -97,7 +111,7 @@ class HomeViewModelTest {
 
     @Test
     fun `the list from the API is saved for the next start, but the archived list is not`() = runTest {
-        val viewModel = HomeViewModel(repository, snapshots)
+        val viewModel = HomeViewModel(repository, WorkspaceArchiver(repository, backgroundScope), snapshots)
         advanceUntilIdle()
         val saved = snapshots.saved
 
@@ -111,7 +125,7 @@ class HomeViewModelTest {
 
     @Test
     fun `show archived reloads with includeArchived`() = runTest {
-        val viewModel = HomeViewModel(repository)
+        val viewModel = HomeViewModel(repository, WorkspaceArchiver(repository, backgroundScope))
         advanceUntilIdle()
 
         viewModel.setShowingArchived(true)

@@ -1,0 +1,8 @@
+[
+  {"id": 2399662, "number": 139, "node_id": "PRS_example", "url": "https://api.github.com/repos/example-org/example-repo/stacks/139",
+   "base": {"ref": "main"}, "open": true, "created_at": "2026-10-21T05:02:18Z",
+   "pull_requests": [
+     {"number": 13, "state": "open", "draft": true, "merged_at": null, "head": {"ref": "stack/01-model", "sha": "783fb25d"}},
+     {"number": 14, "state": "open", "draft": false, "merged_at": null, "head": {"ref": "stack/02-menu", "sha": "fde2f201"}}
+   ]}
+]

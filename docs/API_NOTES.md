@@ -168,6 +168,24 @@ The link opens the Conductor desktop app. Android cannot open it, so the app off
 9. **`workspaceIds` of a section includes archived workspaces.** In one account, 30 of the 37 workspace ids in sections were archived. The app shows a section only when at least one of its workspaces is in the list. The live response also has no `emoji` key when a section has no emoji.
 10. **Some requests are slow, at random.** On 2026-10-21, for about 10 minutes, about one request in five took 2 to 8 seconds. The other requests took 0.1 to 0.5 seconds. A request on the same connection right after a slow one was fast, so the delay is in the server, not in the connection. Some minutes later, no request took more than 0.8 seconds. The app sends a copy of a `GET` that has no answer after 1 second.
 
+## Archive
+
+On 2026-10-22, `POST /v0/workspaces/{id}/archive` took 11.8 seconds on a new, idle workspace, and answered `{"workspaceId": "...", "status": "archived"}`. The call stops the machine before it answers. A second call on an archived workspace answers 200 at once. A body with `Content-Type: application/json` and no content gets 400 `FST_ERR_CTP_EMPTY_JSON_BODY`; the app sends no content type.
+
+## Pull requests and stacks (GitHub)
+
+No Conductor endpoint returns a branch, a pull request or a diff. The workspace object has `number`, the number in its web link `https://app.conductor.build/{org}/w/{number}`. Conductor puts that link in the body of a pull request that an agent creates.
+
+The app reads GitHub with the user's token:
+
+| Method and path | Use in the app |
+| --- | --- |
+| `GET /user` | Test the token in Settings. |
+| `GET /repos/{owner}/{repo}/pulls?state=all&sort=updated&direction=desc&per_page=100` | Find the pull request whose body has the workspace link. GitHub search does not index the link. |
+| `GET /repos/{owner}/{repo}/stacks?pull_request={n}` | The stack of the pull request, bottom first. `[]` when the pull request has no stack. |
+| `GET /repos/{owner}/{repo}/pulls/{n}` | Title, state, additions, deletions and changed files of each tier. The list endpoint leaves out the numbers. |
+| `GET /repos/{owner}/{repo}/pulls/{n}/files?per_page=100&page={p}` | The changed files and their diffs, up to 3000 files. |
+
 ## Fixtures
 
 `scripts/capture_fixtures.py` saves scrubbed live responses to `app/src/test/resources/fixtures/`. It replaces names, e-mail addresses, repository URLs and free text with example values. It aborts if the API key appears in an output file.

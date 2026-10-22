@@ -50,17 +50,22 @@ import build.conductor.android.client.ui.components.LoadingView
 import build.conductor.android.client.ui.components.copyDeepLink
 import build.conductor.android.client.ui.components.shareDeepLink
 import build.conductor.android.client.ui.components.workspaceStateLabel
+import build.conductor.android.client.ui.pullrequest.PullRequestBar
+import build.conductor.android.client.ui.pullrequest.PullRequestViewModel
 import build.conductor.android.client.ui.session.SessionPane
 import build.conductor.android.client.ui.session.SessionViewModel
 import build.conductor.android.client.ui.workspaces.repositoryName
 
-private enum class WorkspaceDialog { RENAME, ARCHIVE, NEW_SESSION }
+private enum class WorkspaceDialog { RENAME, NEW_SESSION }
 
 /** What the workspace screen asks of the app outside it. */
 class WorkspaceScreenActions(
     val sessionViewModel: @Composable (SessionRow) -> SessionViewModel,
+    val pullRequestViewModel: @Composable (Workspace) -> PullRequestViewModel,
+    val onConnectGitHub: () -> Unit,
     val onSubscribeRequested: () -> Unit,
-    val onArchived: () -> Unit,
+    /** Archives the workspace after an undo window, and leaves the screen. */
+    val onArchive: (Workspace) -> Unit,
     val onBack: () -> Unit,
 )
 
@@ -69,7 +74,7 @@ fun WorkspaceScreen(viewModel: WorkspaceDetailViewModel, actions: WorkspaceScree
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var openDialog by remember { mutableStateOf<WorkspaceDialog?>(null) }
-    WorkspaceEffects(viewModel, state, snackbarHostState, actions.onArchived)
+    WorkspaceEffects(viewModel, state, snackbarHostState)
     val detail = (state.detail as? LoadState.Loaded)?.value
     val selectedRow = detail?.sessions?.firstOrNull { it.session.id == state.selectedSessionId }
     val selectedSession = selectedRow?.let { actions.sessionViewModel(it) }
@@ -80,6 +85,7 @@ fun WorkspaceScreen(viewModel: WorkspaceDetailViewModel, actions: WorkspaceScree
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         WorkspaceBody(state, viewModel, padding) { sessions ->
+            detail?.workspace?.let { PullRequestBar(actions.pullRequestViewModel(it), actions.onConnectGitHub) }
             SessionTabs(sessions, state.selectedSessionId, viewModel, TabCallbacks(actions.sessionViewModel, snackbarHostState) { openDialog = WorkspaceDialog.NEW_SESSION })
         }
     }
@@ -87,13 +93,10 @@ fun WorkspaceScreen(viewModel: WorkspaceDetailViewModel, actions: WorkspaceScree
 }
 
 @Composable
-private fun WorkspaceEffects(viewModel: WorkspaceDetailViewModel, state: WorkspaceDetailUiState, snackbarHostState: SnackbarHostState, onArchived: () -> Unit) {
+private fun WorkspaceEffects(viewModel: WorkspaceDetailViewModel, state: WorkspaceDetailUiState, snackbarHostState: SnackbarHostState) {
     LifecycleStartEffect(viewModel) {
         viewModel.onVisible()
         onStopOrDispose {}
-    }
-    LaunchedEffect(viewModel) {
-        viewModel.eventFlow.collect { event -> if (event == WorkspaceEvent.Archived) onArchived() }
     }
     LaunchedEffect(state.snackbarMessage) {
         state.snackbarMessage?.let { snackbarHostState.showSnackbar(it); viewModel.onSnackbarShown() }
@@ -113,7 +116,7 @@ private fun WorkspaceTopBar(viewModel: WorkspaceDetailViewModel, selectedSession
         actions = {
             if (workspace != null) SubscribeButton(state.isSubscribed) { if (!state.isSubscribed) actions.onSubscribeRequested(); viewModel.toggleSubscription() }
             if (selectedSession != null) IconButton(onClick = selectedSession::refresh) { Icon(Icons.Filled.Refresh, contentDescription = "Refresh") }
-            if (workspace != null) WorkspaceMenu(workspace, selectedSession, onDialog)
+            if (workspace != null) WorkspaceMenu(workspace, selectedSession, MenuCallbacks(onDialog, actions.onArchive))
         },
     )
 }
@@ -145,8 +148,10 @@ private fun SubscribeButton(isSubscribed: Boolean, onToggle: () -> Unit) {
 }
 
 /** The Conductor link of the open session opens the workspace at that session, so it replaces the workspace link. */
+private class MenuCallbacks(val onDialog: (WorkspaceDialog) -> Unit, val onArchive: (Workspace) -> Unit)
+
 @Composable
-private fun WorkspaceMenu(workspace: Workspace, selectedSession: SessionViewModel?, onDialog: (WorkspaceDialog) -> Unit) {
+private fun WorkspaceMenu(workspace: Workspace, selectedSession: SessionViewModel?, callbacks: MenuCallbacks) {
     val context = LocalContext.current
     val sessionLink = selectedSession?.uiState?.collectAsStateWithLifecycle()?.value?.deepLink
     val deepLink = sessionLink ?: workspace.deepLink
@@ -155,9 +160,9 @@ private fun WorkspaceMenu(workspace: Workspace, selectedSession: SessionViewMode
     DropdownMenu(expanded = isExpanded, onDismissRequest = { isExpanded = false }) {
         DropdownMenuItem(text = { Text("Copy Conductor link") }, onClick = { isExpanded = false; copyDeepLink(context, deepLink) })
         DropdownMenuItem(text = { Text("Open in Conductor (share)") }, onClick = { isExpanded = false; shareDeepLink(context, workspace.name, deepLink) })
-        DropdownMenuItem(text = { Text("Rename workspace") }, onClick = { isExpanded = false; onDialog(WorkspaceDialog.RENAME) })
+        DropdownMenuItem(text = { Text("Rename workspace") }, onClick = { isExpanded = false; callbacks.onDialog(WorkspaceDialog.RENAME) })
         if (WorkspaceState.from(workspace.state) != WorkspaceState.ARCHIVED) {
-            DropdownMenuItem(text = { Text("Archive workspace") }, onClick = { isExpanded = false; onDialog(WorkspaceDialog.ARCHIVE) })
+            DropdownMenuItem(text = { Text("Archive workspace") }, onClick = { isExpanded = false; callbacks.onArchive(workspace) })
         }
     }
 }
@@ -231,7 +236,6 @@ private fun WorkspaceDialogs(
     if (workspace == null) return
     when (openDialog) {
         WorkspaceDialog.RENAME -> RenameDialog(workspace.name, onConfirm = { onDismiss(); viewModel.rename(it) }, onDismiss = onDismiss)
-        WorkspaceDialog.ARCHIVE -> ArchiveDialog(workspace.name, onConfirm = { onDismiss(); viewModel.archive() }, onDismiss = onDismiss)
         WorkspaceDialog.NEW_SESSION -> NewSessionDialog(
             initialSelection = state.defaultSelection,
             favorites = state.favorites,

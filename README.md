@@ -9,12 +9,16 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
 ## What the app does
 
 - **Settings.** Paste a Conductor API key. The app tests the key with a read-only call (`GET /me`) before it saves the key. The key is encrypted with AES-GCM. The AES key stays in the Android Keystore. You can clear the key.
+  - An optional GitHub token shows the pull requests and changes of a workspace. The app tests it with `GET /user` and encrypts it in the same way as the API key.
 - **Colour scheme.** Settings has three colour schemes. "Default" uses your wallpaper colours on Android 12 and later. "Neapolitan" uses strawberry, vanilla and chocolate. "Spumoni" uses pistachio, fior di latte and cherry. Both ice cream schemes have a light and a dark version.
 - **Workspaces (home screen).** All your workspaces, grouped by the sections that you made in the Conductor app. The sections come in the order that the API returns them. Workspaces with no section go under "Other workspaces". Each row shows the name, repository, status badge and last activity. Pull down to refresh. A filter chip shows archived workspaces. If the sections do not load, the list shows all workspaces with no headers and a message.
   - When the app starts, the list from the last start shows at once. A spinner at the top shows that the app loads the new list. With no connection, the old list stays and a message shows.
 - **Projects.** The list of repositories. The list button on the home screen opens it. A project opens the workspaces of that repository. The "+" button at the top of the home screen asks for a project first.
+- **Archive.** Swipe a workspace to the left on the home screen or on the list of a project. The workspace screen menu also has "Archive workspace". It goes back to the list.
+  - An "Undo" button shows for 5 seconds. The app sends the archive request only when the button goes away.
+  - The workspace leaves every list at once. If the request fails, the workspace comes back and a message shows.
+  - An archive can take more than 10 seconds, because Conductor stops the machine first. The app waits up to 120 seconds. If the connection drops, the app reads the workspace, and an archived state counts as a success.
 - **Workspaces of a project.** The same rows as the home screen, for one repository.
-  - Swipe a workspace to the left to archive it. An "Undo" button shows for 5 seconds. The app sends the archive request only when the button goes away.
 - **New workspace.** Name, branch, agent, model, effort and a first prompt. Your favourite models from the Conductor app are shortcuts.
 - **Workspace.** A workspace opens directly at a session. Each session has a tab below the title bar, as in the Conductor app.
   - Tap a tab, or swipe left or right, to go to a different session.
@@ -24,6 +28,12 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
   - When you open a workspace again, its tabs from the last visit show at once while the app reads them again.
   - The tabs show when the status of each session is known. The app then reads the transcripts of the other working sessions to find questions. It waits for those transcripts first only when two or more agents work, because then a question decides the first tab.
   - The menu renames the workspace, archives it, or copies and shares the Conductor link of the open session.
+- **Pull request and stack (needs a GitHub token).** A bar under the title shows the pull request of the workspace: its state, number, title and the added and removed lines.
+  - The app finds the pull request through the Conductor link of the workspace (`conductor.build/.../w/{number}`) in the pull request body. If no body has the link, it uses a pull request whose branch ends with the workspace name. It reads the 100 most recently updated pull requests of the repository.
+  - If the pull request is part of a stack, the bar shows its position, for example "2/3". Tap the bar to open the stack menu, as in the Conductor desktop app. The menu lists the pull requests from the top of the stack down to the base branch. Choose one to show it in the bar and in the changes.
+  - The app reads the stack from GitHub's stack endpoint, which `gh stack` uses. Without a stack on GitHub, open pull requests whose base is the branch of another one make the stack.
+  - Tap the line numbers to open the changes. The changes show each file with its added and removed lines. "Folders" groups the files by folder, with the totals of each folder. "Files" is one list in path order. "Type" groups the files into added, modified, renamed and removed. Tap a folder to close or open it. Tap a file to see its diff.
+  - Switching to a different pull request of the stack does not change the branch of the workspace.
 - **Session.** The transcript as a chat, with markdown and code blocks. A composer at the bottom moves up with the keyboard. "Stop" cancels the agent's turn.
   - Touch and hold a message to select its text. Each message has a copy button below it.
   - Code blocks wrap long lines. Each code block has a copy button that copies only the code.
@@ -153,7 +163,8 @@ I made these decisions without a person to ask.
 - **Battery.** While an agent works, the app keeps the phone awake and sends requests every 15 seconds. A long agent turn costs battery. Unsubscribe from a workspace that you do not need to follow.
 - **Code blocks.** Code blocks have no syntax colours.
 - **Pictures in the workspace.** An agent usually saves a screenshot as a file on the cloud machine. The API has no endpoint that reads a workspace file, and the workspace preview URL rejects an API key with HTTP 401. So the app shows the file name, not the picture.
-- **Archive by swipe.** If Android stops the app during the 5 seconds of the "Undo" button, the app does not send the archive request. The workspace stays in the list.
+- **Archive.** If Android stops the app during the 5 seconds of the "Undo" button, the app does not send the archive request. The workspace stays in the list.
+- **Pull requests.** The Conductor API has no branch or pull request field, so the app needs a GitHub token and a link or a branch name to find the pull request. A pull request that is older than the 100 most recently updated ones is not found.
 - **Finding a question costs requests.** The status stays "working" while a question waits, so the app reads the transcript to find it. The API returns messages oldest first, so the first look at a long session reads the whole transcript, 100 messages for each request. Later looks read only new messages.
 - **Codex questions.** I tested questions from Claude sessions only.
 

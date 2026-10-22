@@ -1,0 +1,13 @@
+[
+  {"number": 14, "title": "Add the stack menu", "state": "open", "draft": false, "merged_at": null,
+   "body": "Adds the menu.\n\n[Open workspace in Conductor](https://app.conductor.build/example-org/w/7720)",
+   "head": {"ref": "stack/02-menu"}, "base": {"ref": "stack/01-model"}, "html_url": "https://github.com/example-org/example-repo/pull/14"},
+  {"number": 13, "title": "Read the stack model", "state": "open", "draft": true, "merged_at": null,
+   "body": "## TL;DR\n\nReads the model.\n\n<!-- conductor-workspace-link -->\n\n---\n\n[Open workspace in Conductor](https://app.conductor.build/example-org/w/772)\n",
+   "head": {"ref": "stack/01-model"}, "base": {"ref": "main"}, "html_url": "https://github.com/example-org/example-repo/pull/13"},
+  {"number": 12, "title": "An older attempt", "state": "closed", "draft": false, "merged_at": null,
+   "body": "[Open workspace in Conductor](https://app.conductor.build/example-org/w/772)",
+   "head": {"ref": "old-attempt"}, "base": {"ref": "main"}, "html_url": "https://github.com/example-org/example-repo/pull/12"},
+  {"number": 11, "title": "Unrelated work", "state": "open", "draft": false, "merged_at": null, "body": null,
+   "head": {"ref": "someone/unrelated"}, "base": {"ref": "main"}, "html_url": "https://github.com/example-org/example-repo/pull/11"}
+]
