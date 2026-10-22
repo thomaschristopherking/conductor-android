@@ -10,6 +10,7 @@ import build.conductor.android.client.data.HomeSnapshots
 import build.conductor.android.client.data.OpenQuestionTracker
 import build.conductor.android.client.data.QuestionScanner
 import build.conductor.android.client.data.RecentCache
+import build.conductor.android.client.data.WorkspaceArchiver
 import build.conductor.android.client.data.api.createConductorApi
 import build.conductor.android.client.data.settings.AesGcmCipher
 import build.conductor.android.client.data.settings.ApiKeyStore
@@ -67,6 +68,8 @@ class AppContainer(context: Context) {
     val repository: ConductorRepository = ApiConductorRepository(
         createConductorApi(apiKey = { (apiKeyState.value as? ApiKeyState.Present)?.apiKey }),
     )
+
+    val workspaceArchiver = WorkspaceArchiver(repository, applicationScope)
 
     val questionScanner = QuestionScanner(repository)
 

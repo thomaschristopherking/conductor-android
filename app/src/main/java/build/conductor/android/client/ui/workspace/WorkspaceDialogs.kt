@@ -32,17 +32,6 @@ fun RenameDialog(currentName: String, onConfirm: (String) -> Unit, onDismiss: ()
 }
 
 @Composable
-fun ArchiveDialog(name: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Archive \"$name\"?") },
-        text = { Text("Conductor stops the workspace and hides it. You can restore it later in the Conductor app.") },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Archive") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
-}
-
-@Composable
 fun NewSessionDialog(
     initialSelection: ModelSelection,
     favorites: List<ModelSelection>,

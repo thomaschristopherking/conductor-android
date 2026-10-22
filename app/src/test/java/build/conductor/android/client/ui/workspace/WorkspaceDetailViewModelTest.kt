@@ -3,7 +3,6 @@
 package build.conductor.android.client.ui.workspace
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import app.cash.turbine.test
 import build.conductor.android.client.FakeConductorRepository
 import build.conductor.android.client.MainDispatcherRule
 import build.conductor.android.client.data.AgentStatus
@@ -191,17 +190,6 @@ class WorkspaceDetailViewModelTest {
         viewModel.toggleSubscription()
         advanceUntilIdle()
         assertEquals(false, viewModel.uiState.value.isSubscribed)
-    }
-
-    @Test
-    fun `archive emits an event`() = runTest {
-        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
-        advanceUntilIdle()
-
-        viewModel.eventFlow.test {
-            viewModel.archive()
-            assertEquals(WorkspaceEvent.Archived, awaitItem())
-        }
     }
 
     private fun row(id: String, status: AgentStatus, hasOpenQuestion: Boolean = false) =

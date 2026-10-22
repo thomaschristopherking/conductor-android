@@ -2,14 +2,19 @@ package build.conductor.android.client.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import build.conductor.android.client.data.ArchiveState
 import build.conductor.android.client.data.ConductorRepository
 import build.conductor.android.client.data.HomeSnapshot
 import build.conductor.android.client.data.HomeSnapshots
+import build.conductor.android.client.data.WorkspaceArchiver
+import build.conductor.android.client.data.applyTo
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.Section
 import build.conductor.android.client.data.api.Workspace
 import build.conductor.android.client.ui.components.LoadState
 import build.conductor.android.client.ui.components.toFailedState
+import build.conductor.android.client.ui.workspaces.SharedWorkspaceArchiving
+import build.conductor.android.client.ui.workspaces.WorkspaceArchiving
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -24,13 +29,21 @@ data class HomeUiState(
     val isShowingArchived: Boolean = false,
     val isRefreshing: Boolean = false,
     val snackbarMessage: String? = null,
+    val archive: ArchiveState = ArchiveState(),
 )
+
+/** The groups without the workspaces that the user archived. A group that loses every workspace goes away. */
+val HomeUiState.visibleGroups: LoadState<List<WorkspaceGroup>>
+    get() = (groups as? LoadState.Loaded)?.let { loaded ->
+        LoadState.Loaded(loaded.value.map { it.copy(workspaces = archive.applyTo(it.workspaces, isShowingArchived)) }.filter { it.workspaces.isNotEmpty() })
+    } ?: groups
 
 /** Lists every workspace that the user can see, grouped by the user's sections. */
 class HomeViewModel(
     private val repository: ConductorRepository,
+    archiver: WorkspaceArchiver,
     private val snapshots: HomeSnapshots = HomeSnapshots.None,
-) : ViewModel() {
+) : ViewModel(), WorkspaceArchiving by SharedWorkspaceArchiving(archiver) {
     private val state = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = state.asStateFlow()
     private var loadJob: Job? = null
@@ -40,6 +53,7 @@ class HomeViewModel(
             showSnapshot()
             fetchGroups()
         }
+        viewModelScope.launch { archiver.archiveState.collect { archive -> state.update { it.copy(archive = archive) } } }
     }
 
     fun load() {

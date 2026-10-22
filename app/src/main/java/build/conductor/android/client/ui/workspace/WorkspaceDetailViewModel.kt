@@ -17,13 +17,10 @@ import build.conductor.android.client.ui.components.LoadState
 import build.conductor.android.client.ui.components.toFailedState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -50,10 +47,6 @@ data class WorkspaceDetailUiState(
     val isSubscribed: Boolean = false,
 )
 
-sealed interface WorkspaceEvent {
-    data object Archived : WorkspaceEvent
-}
-
 /** What the user enters in the new-session dialog. */
 data class NewSessionInput(val selection: ModelSelection, val name: String, val message: String)
 
@@ -67,8 +60,6 @@ class WorkspaceDetailViewModel(
 ) : ViewModel() {
     private val state = MutableStateFlow(WorkspaceDetailUiState(selectedSessionId = initialSessionId))
     val uiState: StateFlow<WorkspaceDetailUiState> = state.asStateFlow()
-    private val events = Channel<WorkspaceEvent>(Channel.BUFFERED)
-    val eventFlow: Flow<WorkspaceEvent> = events.receiveAsFlow()
     private val statusPermits = Semaphore(MAX_PARALLEL_STATUS_CALLS)
     private var isFirstVisit = true
 
@@ -205,11 +196,6 @@ class WorkspaceDetailViewModel(
             val renamed = repository.renameWorkspace(workspaceId, trimmed)
             state.update { current -> current.copy(detail = current.detail.mapDetail { it.copy(workspace = renamed) }) }
         }
-    }
-
-    fun archive() = runAction {
-        repository.archiveWorkspace(workspaceId)
-        events.send(WorkspaceEvent.Archived)
     }
 
     fun createSession(input: NewSessionInput) = runAction {

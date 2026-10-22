@@ -66,7 +66,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
         }
         composable<HomeRoute> {
             HomeScreen(
-                viewModel = viewModel { HomeViewModel(container.repository, container.homeSnapshots) },
+                viewModel = viewModel { HomeViewModel(container.repository, container.workspaceArchiver, container.homeSnapshots) },
                 actions = HomeActions(
                     onOpenWorkspace = { navController.navigate(WorkspaceRoute(it.id)) },
                     onCreateWorkspace = { navController.navigate(ChooseProjectRoute) },
@@ -96,7 +96,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
         composable<WorkspacesRoute> { entry ->
             val route = entry.toRoute<WorkspacesRoute>()
             WorkspacesScreen(
-                viewModel = viewModel { WorkspacesViewModel(container.repository, route.projectId, container.applicationScope) },
+                viewModel = viewModel { WorkspacesViewModel(container.repository, route.projectId, container.workspaceArchiver) },
                 projectName = route.projectName,
                 onOpenWorkspace = { navController.navigate(WorkspaceRoute(it.id)) },
                 onCreateWorkspace = { navController.navigate(CreateWorkspaceRoute(route.projectId, route.projectName)) },
@@ -133,7 +133,10 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
                         viewModel(key = row.session.id) { SessionViewModel(container.repository, row.session.id, row.title, container.subscriptionStore, container.transcripts) }
                     },
                     onSubscribeRequested = rememberNotificationPermissionRequest(),
-                    onArchived = { navController.popBackStack() },
+                    onArchive = { workspace ->
+                        container.workspaceArchiver.archive(workspace)
+                        navController.popBackStack()
+                    },
                     onBack = { navController.popBackStack() },
                 ),
             )

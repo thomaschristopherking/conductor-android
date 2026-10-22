@@ -36,7 +36,8 @@ import build.conductor.android.client.ui.components.EmptyView
 import build.conductor.android.client.ui.components.ErrorView
 import build.conductor.android.client.ui.components.LoadState
 import build.conductor.android.client.ui.components.LoadingView
-import build.conductor.android.client.ui.workspaces.WorkspaceRow
+import build.conductor.android.client.ui.workspaces.ArchiveSnackbars
+import build.conductor.android.client.ui.workspaces.SwipeToArchiveRow
 
 /** The screens that the home screen opens. */
 class HomeActions(
@@ -54,6 +55,7 @@ fun HomeScreen(viewModel: HomeViewModel, actions: HomeActions) {
     LaunchedEffect(state.snackbarMessage) {
         state.snackbarMessage?.let { snackbarHostState.showSnackbar(it); viewModel.onSnackbarShown() }
     }
+    ArchiveSnackbars(state.archive.undoable, viewModel, snackbarHostState)
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { TopAppBar(title = { Text("Workspaces") }, actions = { HomeTopActions(actions) }) },
@@ -80,32 +82,34 @@ private fun HomeBody(state: HomeUiState, viewModel: HomeViewModel, onOpenWorkspa
             modifier = Modifier.padding(horizontal = 16.dp),
         )
         PullToRefreshBox(isRefreshing = state.isRefreshing, onRefresh = viewModel::refresh, modifier = Modifier.fillMaxSize()) {
-            when (val groups = state.groups) {
+            when (val groups = state.visibleGroups) {
                 LoadState.Loading -> LoadingView()
                 is LoadState.Failed -> ErrorView(groups.message, viewModel::load)
-                is LoadState.Loaded -> WorkspaceGroupList(groups.value, onOpenWorkspace)
+                is LoadState.Loaded -> WorkspaceGroupList(groups.value, onOpenWorkspace, viewModel::archive)
             }
         }
     }
 }
 
 @Composable
-internal fun WorkspaceGroupList(groups: List<WorkspaceGroup>, onOpenWorkspace: (Workspace) -> Unit) {
+internal fun WorkspaceGroupList(groups: List<WorkspaceGroup>, onOpenWorkspace: (Workspace) -> Unit, onArchive: (Workspace) -> Unit) {
     if (groups.isEmpty()) {
         EmptyView("No workspaces", "Tap + at the top to start one in the cloud.")
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        groups.forEach { group -> workspaceGroup(group, onOpenWorkspace) }
+        groups.forEach { group -> workspaceGroup(group, onOpenWorkspace, onArchive) }
     }
 }
 
-private fun LazyListScope.workspaceGroup(group: WorkspaceGroup, onOpenWorkspace: (Workspace) -> Unit) {
+private fun LazyListScope.workspaceGroup(group: WorkspaceGroup, onOpenWorkspace: (Workspace) -> Unit, onArchive: (Workspace) -> Unit) {
     group.title?.let { title -> stickyHeader(key = "header/${group.key}") { SectionHeader(title) } }
     // A workspace can be in more than one section, so the key includes the group.
     items(group.workspaces, key = { "${group.key}/${it.id}" }) { workspace ->
-        WorkspaceRow(workspace, onClick = { onOpenWorkspace(workspace) })
-        HorizontalDivider()
+        Column(modifier = Modifier.animateItem()) {
+            SwipeToArchiveRow(workspace, onClick = { onOpenWorkspace(workspace) }, onArchive = { onArchive(workspace) })
+            HorizontalDivider()
+        }
     }
 }
 
