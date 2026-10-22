@@ -9,12 +9,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import build.conductor.android.client.notify.StatusNotifier
 import build.conductor.android.client.ui.components.LoadingView
 import build.conductor.android.client.ui.navigation.AppNavHost
 import build.conductor.android.client.ui.navigation.WorkspaceRoute
 import build.conductor.android.client.ui.theme.ConductorTheme
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     /** A session that a notification asked to open. The nav host clears it after it navigates. */
@@ -29,6 +31,11 @@ class MainActivity : ComponentActivity() {
             val colorScheme by container.colorScheme.collectAsStateWithLifecycle()
             colorScheme?.let { choice -> ConductorTheme(choice) { AppContent(container) } }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        lifecycleScope.launch { (application as ConductorApplication).watchScheduler.restartIfNeeded() }
     }
 
     @Composable

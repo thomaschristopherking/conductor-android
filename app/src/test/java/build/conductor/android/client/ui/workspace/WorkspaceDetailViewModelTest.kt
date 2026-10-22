@@ -12,8 +12,10 @@ import build.conductor.android.client.data.OpenQuestionTracker
 import build.conductor.android.client.data.QuestionScanner
 import build.conductor.android.client.data.RecentCache
 import build.conductor.android.client.data.api.Session
+import build.conductor.android.client.data.settings.WorkspaceSubscriptions
 import build.conductor.android.client.ui.components.LoadState
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -176,6 +178,22 @@ class WorkspaceDetailViewModelTest {
     }
 
     @Test
+    fun `the bell subscribes with the status of each session, and a second tap unsubscribes`() = runTest {
+        val subscriptions = RecordingSubscriptions()
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)), subscriptions = subscriptions)
+        advanceUntilIdle()
+
+        viewModel.toggleSubscription()
+        advanceUntilIdle()
+
+        assertEquals(true, viewModel.uiState.value.isSubscribed)
+        assertEquals(mapOf("s1" to "working", "s2" to "error"), subscriptions.sessionStatuses)
+        viewModel.toggleSubscription()
+        advanceUntilIdle()
+        assertEquals(false, viewModel.uiState.value.isSubscribed)
+    }
+
+    @Test
     fun `archive emits an event`() = runTest {
         val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
         advanceUntilIdle()
@@ -188,4 +206,18 @@ class WorkspaceDetailViewModelTest {
 
     private fun row(id: String, status: AgentStatus, hasOpenQuestion: Boolean = false) =
         SessionRow(Session(id, "conductor://$id", id), status, hasOpenQuestion)
+}
+
+private class RecordingSubscriptions : WorkspaceSubscriptions {
+    override val subscribedIds = MutableStateFlow(emptySet<String>())
+    var sessionStatuses: Map<String, String>? = null
+
+    override suspend fun subscribe(workspaceId: String, name: String, sessionStatuses: Map<String, String>) {
+        subscribedIds.value = setOf(workspaceId)
+        this.sessionStatuses = sessionStatuses
+    }
+
+    override suspend fun unsubscribe(workspaceId: String) {
+        subscribedIds.value = emptySet()
+    }
 }

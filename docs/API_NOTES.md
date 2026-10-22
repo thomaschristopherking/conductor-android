@@ -57,6 +57,8 @@ A project contains workspaces. A workspace contains sessions. A session contains
 | `POST /v0/sessions/{id}/cancel` | Stop the current agent turn. |
 | `GET /v0/favorite-models` | Put the user's favourite models first in the model picker. |
 
+The background check uses `GET /v0/workspaces/{id}`, `GET /v0/workspaces/{id}/sessions`, `GET /v0/sessions/{id}/status` and `GET /v0/sessions/{id}/messages?after=…` from this table.
+
 ## Status values
 
 - Workspace `state`: `initializing`, `ready`, `sleeping`, `archived`, `deleted`, `updating`, `unstarted`.
@@ -110,7 +112,15 @@ An agent asks the user a question with Conductor's MCP tool, `mcp__conductor__As
 - In the test, the message was `My answers to your questions:` and one numbered line for each question. The agent replied with the chosen answers.
 - An answer in the desktop app gives the tool result `User responses:` and one numbered line for each question.
 - `POST /v0/sessions/{id}/cancel` also closes the question, but it drops queued messages. To answer, send a message. Do not cancel first.
-- To find an open question without the session screen, the app reads the transcript after a saved message id. The background check saves that id for each starred session.
+- To find an open question without the session screen, the app reads the transcript after a saved message id. The background check saves that id for each session in a subscribed workspace.
+
+## Signals for the background check
+
+The API has no push messages, no webhooks for session events and no event stream. The routine webhooks only receive calls. So the app polls. I checked these facts on 2026-10-22 against the live API:
+
+- The workspace field `lastActivityAt` changes within seconds of agent activity. Two reads 3 seconds apart, while an agent worked, gave `14:36:25.839Z` and `14:36:28.943Z`. One `GET /v0/workspaces/{id}` per check tells the app if anything happened.
+- The `updatedAt` field of a session status changes while the agent works. It stays the same while the session is idle. Seven idle sessions kept the same `updatedAt` between two reads 15 minutes apart. So a new `updatedAt` on an idle session means that a turn ran between two checks.
+- `POST /v0/sql` answered `The SQL search API endpoint is temporarily disabled` with `code: "INTERNAL"`. The app does not use it.
 
 ## Create a workspace
 

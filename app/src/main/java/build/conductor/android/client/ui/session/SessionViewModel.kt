@@ -7,8 +7,8 @@ import build.conductor.android.client.data.ConductorRepository
 import build.conductor.android.client.data.RecentCache
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.Message
-import build.conductor.android.client.data.settings.StarredSessions
 import build.conductor.android.client.data.api.SessionStatus
+import build.conductor.android.client.data.settings.SessionSightings
 import build.conductor.android.client.data.transcript.Delivery
 import build.conductor.android.client.data.transcript.Question
 import build.conductor.android.client.data.transcript.QuestionAnswer
@@ -47,7 +47,6 @@ data class SessionUiState(
     val isCancelling: Boolean = false,
     val isPolling: Boolean = false,
     val connectionProblem: String? = null,
-    val isStarred: Boolean = false,
     /** A question that the agent waits on; the API still reports the status as working. */
     val openQuestion: TranscriptItem.Questions? = null,
     /** One answer for each question in [openQuestion]. */
@@ -66,7 +65,7 @@ class SessionViewModel(
     private val repository: ConductorRepository,
     private val sessionId: String,
     title: String,
-    private val starredSessions: StarredSessions = StarredSessions.None,
+    private val sightings: SessionSightings = SessionSightings.None,
     private val transcripts: RecentCache<String, TranscriptSnapshot> = RecentCache(maxEntries = 0),
     private val newMessageId: () -> String = { UUID.randomUUID().toString() },
 ) : ViewModel() {
@@ -81,7 +80,8 @@ class SessionViewModel(
     /** Questions whose answers the app sent; the form closes before the agent's tool result arrives. */
     private val answeredQuestionIds = mutableSetOf<String>()
 
-    /** The last open question that this screen recorded as seen for a starred session. */
+    /** The last status and open question that this screen recorded, so the background check does not notify about them. */
+    private var recordedStatus: SessionStatus? = null
     private var recordedSeenQuestionId: String? = null
 
     /** The text and id of a prompt whose send failed; a resend of the same text reuses the id, so the server can drop a duplicate. */
@@ -98,9 +98,6 @@ class SessionViewModel(
     init {
         publishItems()
         load()
-        viewModelScope.launch {
-            starredSessions.starredIds.collect { ids -> state.update { it.copy(isStarred = sessionId in ids) } }
-        }
     }
 
     fun load() {
@@ -190,7 +187,6 @@ class SessionViewModel(
             unsentPrompt = null
             markPending(messageId, if (sent.state == "queued") Delivery.QUEUED else Delivery.SENT)
             deliveryGracePolls = DELIVERY_GRACE_POLLS
-            recordStatusForStar(AgentStatus.WORKING)
             backoff.onNewMessages()
             startPollingIfNeeded()
         } catch (exception: ApiException) {
@@ -218,13 +214,6 @@ class SessionViewModel(
                 events.send(SessionEvent.ShowMessage(exception.message ?: "The agent did not stop."))
             }
             state.update { it.copy(isCancelling = false) }
-        }
-    }
-
-    fun toggleStar() {
-        val current = state.value
-        viewModelScope.launch {
-            if (current.isStarred) starredSessions.unstar(sessionId) else starredSessions.star(sessionId, current.title, current.status.apiValue)
         }
     }
 
@@ -283,7 +272,7 @@ class SessionViewModel(
         val agentStatus = AgentStatus.from(status.status)
         pendingPrompts.removeAll { pending -> transcript.containsPrompt(pending) }
         updateDeliveryGrace(agentStatus, newItems)
-        if (agentStatus != state.value.status) recordStatusForStar(agentStatus)
+        recordSeenStatus(status)
         state.update { it.copy(status = agentStatus, statusError = status.errorMessage ?: status.lastError) }
         publishItems()
     }
@@ -299,9 +288,17 @@ class SessionViewModel(
         }
     }
 
-    private fun recordStatusForStar(agentStatus: AgentStatus) {
-        val apiValue = agentStatus.apiValue ?: return
-        if (state.value.isStarred) viewModelScope.launch { starredSessions.recordStatus(sessionId, apiValue) }
+    private fun recordSeenStatus(status: SessionStatus) {
+        if (!isNewSighting(status)) return
+        recordedStatus = status
+        viewModelScope.launch { sightings.recordStatus(status) }
+    }
+
+    /** A settled status also counts when its time changes, because the background check reads a new time as a turn that the user did not see. */
+    private fun isNewSighting(status: SessionStatus): Boolean {
+        val previous = recordedStatus ?: return true
+        val isSettled = AgentStatus.from(status.status).isSettled
+        return previous.status != status.status || (isSettled && previous.updatedAt != status.updatedAt)
     }
 
     private fun markPending(messageId: String, delivery: Delivery) {
@@ -324,9 +321,9 @@ class SessionViewModel(
 
     /** The user sees the question here, so the background check must not notify about it. */
     private fun recordSeenQuestion(toolUseId: String) {
-        if (!state.value.isStarred || toolUseId == recordedSeenQuestionId) return
+        if (toolUseId == recordedSeenQuestionId) return
         recordedSeenQuestionId = toolUseId
-        viewModelScope.launch { starredSessions.recordSeenQuestion(sessionId, toolUseId) }
+        viewModelScope.launch { sightings.recordSeenQuestion(sessionId, toolUseId) }
     }
 
     /** Keeps the user's choices while the same question stays open. */

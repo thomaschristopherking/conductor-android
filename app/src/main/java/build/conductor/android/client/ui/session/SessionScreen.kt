@@ -20,13 +20,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -68,16 +65,6 @@ fun SessionPane(viewModel: SessionViewModel, snackbarHostState: SnackbarHostStat
         if (state.status != AgentStatus.UNKNOWN) onStatusChange(state.status, state.openQuestion != null)
     }
     SessionBody(state, viewModel)
-}
-
-@Composable
-fun StarButton(state: SessionUiState, onToggle: () -> Unit) {
-    IconButton(onClick = onToggle) {
-        Icon(
-            if (state.isStarred) Icons.Filled.Star else Icons.Outlined.Star,
-            contentDescription = if (state.isStarred) "Stop notifications" else "Notify me when the agent finishes",
-        )
-    }
 }
 
 @Composable

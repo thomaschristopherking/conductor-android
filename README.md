@@ -35,7 +35,13 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
   - When the agent asks you a question, the chat shows the question with its options. Choose the options, or type in "Other", then tap "Send answers".
   - While the agent works, the app polls every 3 seconds for new messages only.
   - The badge shows "Working", "Waiting for you" (the API status `idle`) or "Error".
-- **Notifications (optional).** Tap the star on a session. The app checks starred sessions every 15 minutes. It notifies you when an agent stops working, or when it asks you a question.
+- **Notifications (optional).** Tap the bell at the top of a workspace to subscribe to it. The app notifies you when an agent in that workspace stops working, stops with an error, or asks you a question. Tap the bell again to stop the notifications.
+  - Conductor sends no push messages, so the app checks the workspaces itself. A background service does the checks while the app is closed. Android shows a small notification, "Watching subscribed workspaces", while the service runs. You can hide that notification in the system settings of the app.
+  - While an agent works, the app checks every 15 seconds and keeps the phone awake between checks. When no agent works, the app checks every 60 seconds and lets the phone sleep.
+  - Each check reads one workspace object. The app reads the sessions of a workspace only when its activity time changed or an agent worked at the last check.
+  - The app also notifies you about a turn that started and ended between two checks. The status of a session gets a new time with each turn.
+  - The service starts again after a restart of the phone and after an update of the app. A check every 15 minutes continues if Android stops the service.
+  - An archived or deleted workspace stops its subscription.
 
 ## Install
 
@@ -79,6 +85,8 @@ The unit tests run on the JVM. They do not need a device or the network.
 - `data/transcript/TranscriptParserTest.kt` turns live transcript events into chat rows.
 - `data/ModelCatalogTest.kt` compares the agent and model lists with `docs/openapi.json`. It fails when the spec changes.
 - `ui/session/SessionViewModelTest.kt` tests polling, back-off, sending and cancelling with virtual time.
+- `notify/AgentAlertsTest.kt` tests which status changes make a notification. `notify/WorkspaceWatcherTest.kt` tests the background check against the fake API. `notify/WorkspaceWatchServiceTest.kt` starts the service in Robolectric.
+- `data/settings/WorkspaceSubscriptionTest.kt` tests how a check updates a saved subscription.
 - `ui/home/WorkspaceGroupsTest.kt` and `ui/home/HomeViewModelTest.kt` test the grouping by section, and the list from the last start. `data/FileHomeSnapshotsTest.kt` tests the file that keeps that list. `ui/home/WorkspaceGroupListTest.kt` shows the grouped list in Robolectric.
 - `ui/session/TranscriptScrollTest.kt` shows the chat list in Robolectric. It tests the scroll position and the button that goes to the newest message.
 - `ui/session/MessageImageTest.kt` tests the card for a picture that is a workspace file.
@@ -100,9 +108,9 @@ The script sends only `GET` requests. It replaces names, e-mail addresses, repos
 | `docs/` | The OpenAPI spec, the Conductor API and Cloud pages, and `API_NOTES.md` |
 | `app/src/main/.../data/api` | Retrofit interface, models, error mapping, retry |
 | `app/src/main/.../data/transcript` | The parser from transcript events to chat rows |
-| `app/src/main/.../data/settings` | Encrypted key storage and starred sessions |
+| `app/src/main/.../data/settings` | Encrypted key storage and workspace subscriptions |
 | `app/src/main/.../ui` | Compose screens and view models |
-| `app/src/main/.../notify` | The background check for starred sessions |
+| `app/src/main/.../notify` | The background service and the periodic check for subscribed workspaces |
 | `scripts/capture_fixtures.py` | Fixture capture |
 | `dist/` | The release APK |
 
@@ -131,6 +139,8 @@ I made these decisions without a person to ask.
 19. **Answers to questions.** The public API cannot answer Conductor's question form. The app sends your answers as one message. The message closes the form, and the agent reads the answers from the message. See `docs/API_NOTES.md`.
 20. **Slow requests.** The live API sometimes answers a request only after 2 to 8 seconds, at random. When a `GET` has no answer after 1 second, the app sends a copy. After 2 seconds, it sends a third copy. The first answer wins, and the app cancels the other copies. A `POST` is sent once.
 21. **Long transcripts.** The app reads the first page of a transcript alone. If more pages follow, it reads 8 pages at a time.
+22. **Background service.** The API has no push messages, webhooks or event stream, so true push is not possible. The app uses a foreground service of the type `specialUse`. Android 15 limits the type `dataSync` to 6 hours a day, and it does not let a `dataSync` service start after a restart of the phone. The type `specialUse` has neither limit.
+23. **Subscriptions replace stars.** Build 9 and earlier notified about starred sessions. This build removes the stars. Subscribe to the workspace instead.
 
 ## Known limitations
 
@@ -139,7 +149,8 @@ I made these decisions without a person to ask.
 - **Long transcripts.** The first time that a session tab opens, it loads the full transcript, 100 messages for each request.
 - **Little offline cache.** Only the home screen keeps its last list on the phone. Workspaces and chats stay in memory only while the app runs.
 - **Debug key.** The debug key of the build machine signs the APK. A build from a different machine has a different key, so Android does not install it over the earlier build. Uninstall the earlier build first.
-- **Background checks.** Android runs periodic work at most every 15 minutes, and it can delay the work to save battery. An open session tab records each status that it sees, so a short turn that you start from the app is caught. A turn that starts and ends between two checks while the app is closed is not caught.
+- **Background checks.** A notification comes up to 15 seconds after the agent stops. If Android stops the service, the periodic check takes over, and a notification can come 15 minutes late or more. Some phone makers stop background services to save battery. On those phones, set the battery use of the app to "Unrestricted".
+- **Battery.** While an agent works, the app keeps the phone awake and sends requests every 15 seconds. A long agent turn costs battery. Unsubscribe from a workspace that you do not need to follow.
 - **Code blocks.** Code blocks have no syntax colours.
 - **Pictures in the workspace.** An agent usually saves a screenshot as a file on the cloud machine. The API has no endpoint that reads a workspace file, and the workspace preview URL rejects an API key with HTTP 401. So the app shows the file name, not the picture.
 - **Archive by swipe.** If Android stops the app during the 5 seconds of the "Undo" button, the app does not send the archive request. The workspace stays in the list.
