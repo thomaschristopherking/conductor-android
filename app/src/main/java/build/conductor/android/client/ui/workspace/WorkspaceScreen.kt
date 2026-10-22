@@ -50,6 +50,8 @@ import build.conductor.android.client.ui.components.LoadingView
 import build.conductor.android.client.ui.components.copyDeepLink
 import build.conductor.android.client.ui.components.shareDeepLink
 import build.conductor.android.client.ui.components.workspaceStateLabel
+import build.conductor.android.client.ui.pullrequest.PullRequestBar
+import build.conductor.android.client.ui.pullrequest.PullRequestViewModel
 import build.conductor.android.client.ui.session.SessionPane
 import build.conductor.android.client.ui.session.SessionViewModel
 import build.conductor.android.client.ui.workspaces.repositoryName
@@ -59,6 +61,8 @@ private enum class WorkspaceDialog { RENAME, NEW_SESSION }
 /** What the workspace screen asks of the app outside it. */
 class WorkspaceScreenActions(
     val sessionViewModel: @Composable (SessionRow) -> SessionViewModel,
+    val pullRequestViewModel: @Composable (Workspace) -> PullRequestViewModel,
+    val onConnectGitHub: () -> Unit,
     val onSubscribeRequested: () -> Unit,
     /** Archives the workspace after an undo window, and leaves the screen. */
     val onArchive: (Workspace) -> Unit,
@@ -81,6 +85,7 @@ fun WorkspaceScreen(viewModel: WorkspaceDetailViewModel, actions: WorkspaceScree
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         WorkspaceBody(state, viewModel, padding) { sessions ->
+            detail?.workspace?.let { PullRequestBar(actions.pullRequestViewModel(it), actions.onConnectGitHub) }
             SessionTabs(sessions, state.selectedSessionId, viewModel, TabCallbacks(actions.sessionViewModel, snackbarHostState) { openDialog = WorkspaceDialog.NEW_SESSION })
         }
     }

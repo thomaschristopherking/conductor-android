@@ -1,0 +1,3 @@
+{"number": 13, "title": "Read the stack model", "state": "open", "draft": true, "merged_at": null, "body": "Reads the model.",
+ "head": {"ref": "stack/01-model"}, "base": {"ref": "main"}, "html_url": "https://github.com/example-org/example-repo/pull/13",
+ "additions": 1005, "deletions": 415, "changed_files": 35}

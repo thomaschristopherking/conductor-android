@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import build.conductor.android.client.ApiKeyState
 import build.conductor.android.client.data.ConductorRepository
 import build.conductor.android.client.data.api.ApiException
-import build.conductor.android.client.data.settings.ApiKeyStore
+import build.conductor.android.client.data.settings.SecretStore
 import build.conductor.android.client.data.settings.maskApiKey
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -32,7 +32,7 @@ sealed interface SettingsEvent {
 
 class SettingsViewModel(
     private val repository: ConductorRepository,
-    private val apiKeyStore: ApiKeyStore,
+    private val apiKeyStore: SecretStore,
     apiKeyState: StateFlow<ApiKeyState>,
 ) : ViewModel() {
     private val form = MutableStateFlow(SettingsUiState())

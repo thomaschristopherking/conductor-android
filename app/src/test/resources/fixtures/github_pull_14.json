@@ -1,0 +1,3 @@
+{"number": 14, "title": "Add the stack menu", "state": "open", "draft": false, "merged_at": null, "body": "Adds the menu.",
+ "head": {"ref": "stack/02-menu"}, "base": {"ref": "stack/01-model"}, "html_url": "https://github.com/example-org/example-repo/pull/14",
+ "additions": 120, "deletions": 4, "changed_files": 3}

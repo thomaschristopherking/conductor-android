@@ -9,7 +9,7 @@ import build.conductor.android.client.ApiKeyState
 import build.conductor.android.client.FakeConductorRepository
 import build.conductor.android.client.MainDispatcherRule
 import build.conductor.android.client.data.settings.AesGcmCipher
-import build.conductor.android.client.data.settings.ApiKeyStore
+import build.conductor.android.client.data.settings.SecretStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -35,7 +35,7 @@ class SettingsViewModelTest {
     private val cipher = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey().let { key -> AesGcmCipher { key } }
 
     private fun TestScope.keyStore() =
-        ApiKeyStore(PreferenceDataStoreFactory.create(scope = backgroundScope) { folder.root.resolve("settings.preferences_pb") }, cipher)
+        SecretStore(PreferenceDataStoreFactory.create(scope = backgroundScope) { folder.root.resolve("settings.preferences_pb") }, cipher, SecretStore.API_KEY)
 
     @Test
     fun `a key that passes the test call is saved`() = runTest {
@@ -47,7 +47,7 @@ class SettingsViewModelTest {
             viewModel.testAndSave()
             assertEquals(SettingsEvent.KeySaved, awaitItem())
         }
-        assertEquals(FakeConductorRepository.VALID_KEY, store.apiKey.first())
+        assertEquals(FakeConductorRepository.VALID_KEY, store.secret.first())
     }
 
     @Test
@@ -60,7 +60,7 @@ class SettingsViewModelTest {
         viewModel.testAndSave()
         advanceUntilIdle()
 
-        assertNull(store.apiKey.first())
+        assertNull(store.secret.first())
         assertEquals("Conductor rejected this key. Check it and try again.", viewModel.uiState.value.error)
     }
 }

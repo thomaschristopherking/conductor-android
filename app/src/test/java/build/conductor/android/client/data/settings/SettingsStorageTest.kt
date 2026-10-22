@@ -36,22 +36,22 @@ class SettingsStorageTest {
     @Test
     fun `the key store saves an encrypted key, reads it back and clears it`() = runTest {
         val dataStoreFile = folder.newFile("settings.preferences_pb").also { it.delete() }
-        val store = ApiKeyStore(PreferenceDataStoreFactory.create(scope = backgroundScope) { dataStoreFile }, cipher)
+        val store = SecretStore(PreferenceDataStoreFactory.create(scope = backgroundScope) { dataStoreFile }, cipher, SecretStore.API_KEY)
 
         store.save("  my-key  ")
-        assertEquals("my-key", store.apiKey.first())
+        assertEquals("my-key", store.secret.first())
         assertFalse(dataStoreFile.readBytes().decodeToString().contains("my-key"))
         store.clear()
-        assertNull(store.apiKey.first())
+        assertNull(store.secret.first())
     }
 
     @Test
     fun `a key that the cipher cannot decrypt reads as no key`() = runTest {
         val dataStore = newDataStore("broken")
-        ApiKeyStore(dataStore, cipher).save("my-key")
+        SecretStore(dataStore, cipher, SecretStore.API_KEY).save("my-key")
         val otherKey = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
 
-        assertNull(ApiKeyStore(dataStore, AesGcmCipher { otherKey }).apiKey.first())
+        assertNull(SecretStore(dataStore, AesGcmCipher { otherKey }, SecretStore.API_KEY).secret.first())
     }
 
     @Test

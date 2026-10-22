@@ -1,0 +1,7 @@
+[
+  {"sha": "a1", "filename": "app/src/main/java/Archive.kt", "status": "modified", "additions": 10, "deletions": 2, "changes": 12,
+   "patch": "@@ -1,3 +1,4 @@\n package example\n-val old = 1\n+val new = 2\n+val more = 3"},
+  {"sha": "a2", "filename": "app/src/main/java/Stack.kt", "status": "added", "additions": 40, "deletions": 0, "changes": 40, "patch": "@@ -0,0 +1,1 @@\n+class Stack"},
+  {"sha": "a3", "filename": "docs/old.md", "status": "removed", "additions": 0, "deletions": 7, "changes": 7},
+  {"sha": "a4", "filename": "README.md", "status": "renamed", "previous_filename": "READ_ME.md", "additions": 1, "deletions": 1, "changes": 2, "patch": "@@ -1 +1 @@\n-a\n+b"}
+]

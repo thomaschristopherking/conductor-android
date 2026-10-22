@@ -22,7 +22,9 @@ import build.conductor.android.client.ui.home.HomeViewModel
 import build.conductor.android.client.ui.projects.ProjectsScreen
 import build.conductor.android.client.ui.projects.ProjectsViewModel
 import build.conductor.android.client.ui.session.SessionViewModel
+import build.conductor.android.client.ui.pullrequest.PullRequestViewModel
 import build.conductor.android.client.ui.settings.AppearanceViewModel
+import build.conductor.android.client.ui.settings.GitHubSettingsViewModel
 import build.conductor.android.client.ui.settings.SettingsScreen
 import build.conductor.android.client.ui.settings.SettingsViewModel
 import build.conductor.android.client.ui.workspace.WorkspaceDetailViewModel
@@ -58,6 +60,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
             val hasPrevious = navController.previousBackStackEntry != null
             SettingsScreen(
                 viewModel = viewModel { SettingsViewModel(container.repository, container.apiKeyStore, container.apiKeyState) },
+                gitHubViewModel = viewModel { GitHubSettingsViewModel(container.gitHubRepository, container.gitHubTokenStore, container.gitHubToken) },
                 appearanceViewModel = viewModel { AppearanceViewModel(container.appearanceStore) },
                 notice = entry.toRoute<SettingsRoute>().notice,
                 onKeySaved = { if (hasPrevious) navController.popBackStack() else navController.openHomeAsRoot() },
@@ -132,6 +135,10 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
                     sessionViewModel = { row ->
                         viewModel(key = row.session.id) { SessionViewModel(container.repository, row.session.id, row.title, container.subscriptionStore, container.transcripts) }
                     },
+                    pullRequestViewModel = { workspace ->
+                        viewModel(key = "pull-request/${workspace.id}") { PullRequestViewModel(container.gitHubRepository, container.isGitHubConnected, workspace) }
+                    },
+                    onConnectGitHub = { navController.navigate(SettingsRoute()) },
                     onSubscribeRequested = rememberNotificationPermissionRequest(),
                     onArchive = { workspace ->
                         container.workspaceArchiver.archive(workspace)

@@ -56,11 +56,13 @@ import build.conductor.android.client.data.settings.ColorSchemeChoice
 import build.conductor.android.client.ui.theme.flavours
 
 private const val API_KEYS_URL = "https://app.conductor.build/home/api-keys"
+private const val GITHUB_TOKENS_URL = "https://github.com/settings/personal-access-tokens/new"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
+    gitHubViewModel: GitHubSettingsViewModel,
     appearanceViewModel: AppearanceViewModel,
     notice: String?,
     onKeySaved: () -> Unit,
@@ -84,6 +86,8 @@ fun SettingsScreen(
             if (notice != null) NoticeCard(notice)
             SavedKeySection(state.savedKeyMask, state.signedInAs, viewModel::clearKey)
             KeyEntrySection(state, viewModel::onKeyInputChange, viewModel::testAndSave)
+            HorizontalDivider()
+            GitHubSection(gitHubViewModel)
             HorizontalDivider()
             ColorSchemeSection(colorScheme, appearanceViewModel::selectColorScheme)
         }
@@ -148,6 +152,48 @@ private fun KeyEntrySection(state: SettingsUiState, onInputChange: (String) -> U
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+}
+
+@Composable
+private fun GitHubSection(viewModel: GitHubSettingsViewModel) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val uriHandler = LocalUriHandler.current
+    var isConfirmingClear by remember { mutableStateOf(false) }
+    Text("GitHub (optional)", style = MaterialTheme.typography.titleMedium)
+    Text(
+        "With a GitHub token, a workspace shows its pull request, the other pull requests of its stack, and the files that each one changes. " +
+            "Give the token read access to the pull requests of your repositories.",
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    state.savedTokenMask?.let { Text("Saved token: $it", style = MaterialTheme.typography.bodyMedium) }
+    state.signedInAs?.let { Text("Signed in to GitHub as $it", style = MaterialTheme.typography.bodyMedium) }
+    OutlinedTextField(
+        value = state.tokenInput,
+        onValueChange = viewModel::onTokenInputChange,
+        label = { Text(if (state.savedTokenMask == null) "Paste a GitHub token" else "Replace the GitHub token") },
+        singleLine = true,
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+        isError = state.error != null,
+        supportingText = { Text(state.error ?: "The app tests the token with a read-only call before it saves it.") },
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = viewModel::testAndSave, enabled = state.tokenInput.isNotBlank() && !state.isTesting) {
+            if (state.isTesting) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Test and save")
+        }
+        TextButton(onClick = { uriHandler.openUri(GITHUB_TOKENS_URL) }) { Text("Create a token") }
+    }
+    if (state.savedTokenMask != null) OutlinedButton(onClick = { isConfirmingClear = true }) { Text("Clear token") }
+    if (isConfirmingClear) {
+        AlertDialog(
+            onDismissRequest = { isConfirmingClear = false },
+            title = { Text("Clear the GitHub token?") },
+            text = { Text("Workspaces no longer show their pull requests and changes.") },
+            confirmButton = { TextButton(onClick = { isConfirmingClear = false; viewModel.clearToken() }) { Text("Clear") } },
+            dismissButton = { TextButton(onClick = { isConfirmingClear = false }) { Text("Cancel") } },
+        )
+    }
 }
 
 @Composable
