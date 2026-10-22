@@ -15,15 +15,19 @@ import build.conductor.android.client.data.settings.AesGcmCipher
 import build.conductor.android.client.data.settings.ApiKeyStore
 import build.conductor.android.client.data.settings.AppearanceStore
 import build.conductor.android.client.data.settings.ColorSchemeChoice
-import build.conductor.android.client.data.settings.StarredSessionStore
+import build.conductor.android.client.data.settings.WorkspaceSubscriptionStore
 import build.conductor.android.client.data.settings.androidKeystoreKey
 import build.conductor.android.client.data.transcript.TranscriptSnapshot
+import build.conductor.android.client.notify.StatusNotifier
+import build.conductor.android.client.notify.WorkspaceWatcher
 import build.conductor.android.client.ui.workspace.WorkspaceDetail
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.map
@@ -49,9 +53,16 @@ class AppContainer(context: Context) {
     val colorScheme: StateFlow<ColorSchemeChoice?> = appearanceStore.colorScheme
         .stateIn(applicationScope, SharingStarted.Eagerly, null)
 
-    val starredSessionStore = StarredSessionStore(
-        PreferenceDataStoreFactory.create { context.preferencesDataStoreFile(STARRED_SESSIONS_FILE) },
+    val subscriptionStore = WorkspaceSubscriptionStore(
+        PreferenceDataStoreFactory.create { context.preferencesDataStoreFile(SUBSCRIPTIONS_FILE) },
     )
+
+    /** The number of subscribed workspaces, or 0 without an API key. */
+    val watchedWorkspaceCount: Flow<Int> = combine(apiKeyState.filterNot { it == ApiKeyState.Loading }, subscriptionStore.subscribedIds) { key, ids ->
+        if (key is ApiKeyState.Present) ids.size else 0
+    }
+
+    val isWatching: Flow<Boolean> = watchedWorkspaceCount.map { it > 0 }
 
     val repository: ConductorRepository = ApiConductorRepository(
         createConductorApi(apiKey = { (apiKeyState.value as? ApiKeyState.Present)?.apiKey }),
@@ -60,6 +71,8 @@ class AppContainer(context: Context) {
     val questionScanner = QuestionScanner(repository)
 
     val openQuestionTracker = OpenQuestionTracker(questionScanner)
+
+    val workspaceWatcher = WorkspaceWatcher(repository, questionScanner, subscriptionStore, StatusNotifier(context.applicationContext))
 
     val homeSnapshots: HomeSnapshots = FileHomeSnapshots(File(context.cacheDir, HOME_SNAPSHOT_FILE))
 
@@ -80,7 +93,7 @@ class AppContainer(context: Context) {
 
     private companion object {
         const val SETTINGS_FILE = "settings"
-        const val STARRED_SESSIONS_FILE = "starred_sessions"
+        const val SUBSCRIPTIONS_FILE = "workspace_subscriptions"
         const val KEYSTORE_ALIAS = "conductor_api_key"
         const val HOME_SNAPSHOT_FILE = "home_snapshot.json"
         const val MAX_SAVED_TRANSCRIPTS = 12

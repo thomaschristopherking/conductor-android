@@ -1,15 +1,15 @@
 package build.conductor.android.client
 
 import android.app.Application
-import build.conductor.android.client.notify.StarredSessionScheduler
+import build.conductor.android.client.notify.WatchScheduler
 import kotlinx.coroutines.launch
 
 class ConductorApplication : Application() {
     val container: AppContainer by lazy { AppContainer(this) }
+    val watchScheduler: WatchScheduler by lazy { WatchScheduler(this, container.isWatching) }
 
     override fun onCreate() {
         super.onCreate()
-        val scheduler = StarredSessionScheduler(this, container.starredSessionStore)
-        container.applicationScope.launch { scheduler.followStarredSessions() }
+        container.applicationScope.launch { watchScheduler.followSubscriptions() }
     }
 }

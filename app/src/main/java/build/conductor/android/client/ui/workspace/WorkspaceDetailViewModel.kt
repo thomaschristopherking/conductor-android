@@ -12,6 +12,7 @@ import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.CreateSessionRequest
 import build.conductor.android.client.data.api.Session
 import build.conductor.android.client.data.api.Workspace
+import build.conductor.android.client.data.settings.WorkspaceSubscriptions
 import build.conductor.android.client.ui.components.LoadState
 import build.conductor.android.client.ui.components.toFailedState
 import kotlinx.coroutines.async
@@ -45,6 +46,8 @@ data class WorkspaceDetailUiState(
     val snackbarMessage: String? = null,
     /** The session whose tab is open. */
     val selectedSessionId: String? = null,
+    /** True when the app notifies about the agents in this workspace. */
+    val isSubscribed: Boolean = false,
 )
 
 sealed interface WorkspaceEvent {
@@ -60,6 +63,7 @@ class WorkspaceDetailViewModel(
     private val openQuestionTracker: OpenQuestionTracker,
     initialSessionId: String? = null,
     private val details: RecentCache<String, WorkspaceDetail> = RecentCache(maxEntries = 0),
+    private val subscriptions: WorkspaceSubscriptions = WorkspaceSubscriptions.None,
 ) : ViewModel() {
     private val state = MutableStateFlow(WorkspaceDetailUiState(selectedSessionId = initialSessionId))
     val uiState: StateFlow<WorkspaceDetailUiState> = state.asStateFlow()
@@ -72,6 +76,7 @@ class WorkspaceDetailViewModel(
         details[workspaceId]?.let(::showSaved) ?: load()
         viewModelScope.launch { uiState.collect { state -> (state.detail as? LoadState.Loaded)?.let { details[workspaceId] = it.value } } }
         viewModelScope.launch { loadFavorites() }
+        viewModelScope.launch { subscriptions.subscribedIds.collect { ids -> state.update { it.copy(isSubscribed = workspaceId in ids) } } }
     }
 
     /** The tabs from the last visit show while the screen reads them again. */
@@ -94,6 +99,15 @@ class WorkspaceDetailViewModel(
     fun onVisible() {
         if (!isFirstVisit && state.value.detail is LoadState.Loaded) refresh()
         isFirstVisit = false
+    }
+
+    /** A new subscription saves the status of each session now, so the background check notifies about the next change. */
+    fun toggleSubscription() {
+        val detail = (state.value.detail as? LoadState.Loaded)?.value ?: return
+        val isSubscribed = state.value.isSubscribed
+        viewModelScope.launch {
+            if (isSubscribed) subscriptions.unsubscribe(workspaceId) else subscriptions.subscribe(workspaceId, detail.workspace.name, detail.sessionStatuses())
+        }
     }
 
     fun selectSession(sessionId: String) = state.update { it.copy(selectedSessionId = sessionId) }
@@ -247,6 +261,9 @@ internal fun chooseSession(selectedSessionId: String?, sessions: List<SessionRow
         ?: sessions.firstOrNull { it.hasOpenQuestion }?.session?.id
         ?: sessions.firstOrNull { it.status == AgentStatus.WORKING }?.session?.id
         ?: sessions.firstOrNull()?.session?.id
+
+private fun WorkspaceDetail.sessionStatuses(): Map<String, String> =
+    sessions.mapNotNull { row -> row.status.apiValue?.let { row.session.id to it } }.toMap()
 
 private fun WorkspaceDetail.withRow(sessionId: String, transform: (SessionRow) -> SessionRow): WorkspaceDetail =
     copy(sessions = sessions.map { if (it.session.id == sessionId) transform(it) else it })

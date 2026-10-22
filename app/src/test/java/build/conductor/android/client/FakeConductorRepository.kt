@@ -56,6 +56,11 @@ class FakeConductorRepository : ConductorRepository {
     var sessionsRequestCount = 0
     var sessionStatuses = mutableMapOf<String, String>()
 
+    /** The `updatedAt` of each session status; a session not in the map has [DEFAULT_TIME]. */
+    val sessionStatusTimes = mutableMapOf<String, String>()
+    var workspaceLastActivityAt = DEFAULT_TIME
+    var workspaceState = "ready"
+
     /** A session in this map reads its own transcript; every other session reads [transcript]. */
     val sessionTranscripts = mutableMapOf<String, List<Message>>()
 
@@ -103,7 +108,8 @@ class FakeConductorRepository : ConductorRepository {
 
     override suspend fun sections(): List<Section> = sectionsResult()
 
-    override suspend fun workspace(workspaceId: String) = workspace(workspaceId, "Workspace $workspaceId")
+    override suspend fun workspace(workspaceId: String) =
+        workspace(workspaceId, "Workspace $workspaceId", workspaceLastActivityAt).copy(state = workspaceState)
 
     override suspend fun createWorkspace(request: CreateWorkspaceRequest): CreatedWorkspace {
         createdWorkspaces += request
@@ -132,7 +138,7 @@ class FakeConductorRepository : ConductorRepository {
     override suspend fun session(sessionId: String) = Session(id = sessionId, deepLink = "conductor://workspace?id=w1&session=$sessionId", name = "Fix CI")
 
     override suspend fun sessionStatus(sessionId: String): SessionStatus =
-        callOrder.add("status").let { _ -> SessionStatus("w1", sessionId, sessionStatuses[sessionId] ?: sessionStatusValue, "2026-10-05T06:00:00Z") }
+        callOrder.add("status").let { _ -> SessionStatus("w1", sessionId, sessionStatuses[sessionId] ?: sessionStatusValue, sessionStatusTimes[sessionId] ?: DEFAULT_TIME) }
 
     override suspend fun newMessages(sessionId: String, afterMessageId: String?): List<Message> {
         messageCursors += afterMessageId
@@ -160,8 +166,9 @@ class FakeConductorRepository : ConductorRepository {
     companion object {
         const val SESSION_ID = "s1"
         const val VALID_KEY = "valid-key"
+        const val DEFAULT_TIME = "2026-10-05T06:00:00Z"
 
-        fun workspace(id: String, name: String, lastActivityAt: String = "2026-10-05T06:00:00Z") = Workspace(
+        fun workspace(id: String, name: String, lastActivityAt: String = DEFAULT_TIME) = Workspace(
             id = id,
             name = name,
             state = "ready",

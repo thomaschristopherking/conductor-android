@@ -13,7 +13,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,7 +52,6 @@ import build.conductor.android.client.ui.components.shareDeepLink
 import build.conductor.android.client.ui.components.workspaceStateLabel
 import build.conductor.android.client.ui.session.SessionPane
 import build.conductor.android.client.ui.session.SessionViewModel
-import build.conductor.android.client.ui.session.StarButton
 import build.conductor.android.client.ui.workspaces.repositoryName
 
 private enum class WorkspaceDialog { RENAME, ARCHIVE, NEW_SESSION }
@@ -58,7 +59,7 @@ private enum class WorkspaceDialog { RENAME, ARCHIVE, NEW_SESSION }
 /** What the workspace screen asks of the app outside it. */
 class WorkspaceScreenActions(
     val sessionViewModel: @Composable (SessionRow) -> SessionViewModel,
-    val onStarRequested: () -> Unit,
+    val onSubscribeRequested: () -> Unit,
     val onArchived: () -> Unit,
     val onBack: () -> Unit,
 )
@@ -74,7 +75,7 @@ fun WorkspaceScreen(viewModel: WorkspaceDetailViewModel, actions: WorkspaceScree
     val selectedSession = selectedRow?.let { actions.sessionViewModel(it) }
     Scaffold(
         topBar = {
-            WorkspaceTopBar(detail?.workspace, selectedSession, actions) { dialog -> openDialog = dialog }
+            WorkspaceTopBar(viewModel, selectedSession, actions) { dialog -> openDialog = dialog }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
@@ -101,14 +102,17 @@ private fun WorkspaceEffects(viewModel: WorkspaceDetailViewModel, state: Workspa
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun WorkspaceTopBar(workspace: Workspace?, selectedSession: SessionViewModel?, actions: WorkspaceScreenActions, onDialog: (WorkspaceDialog) -> Unit) {
+private fun WorkspaceTopBar(viewModel: WorkspaceDetailViewModel, selectedSession: SessionViewModel?, actions: WorkspaceScreenActions, onDialog: (WorkspaceDialog) -> Unit) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val workspace = (state.detail as? LoadState.Loaded)?.value?.workspace
     TopAppBar(
         title = { WorkspaceTitle(workspace) },
         navigationIcon = {
             IconButton(onClick = actions.onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
         },
         actions = {
-            if (selectedSession != null) SessionActions(selectedSession, actions.onStarRequested)
+            if (workspace != null) SubscribeButton(state.isSubscribed) { if (!state.isSubscribed) actions.onSubscribeRequested(); viewModel.toggleSubscription() }
+            if (selectedSession != null) IconButton(onClick = selectedSession::refresh) { Icon(Icons.Filled.Refresh, contentDescription = "Refresh") }
             if (workspace != null) WorkspaceMenu(workspace, selectedSession, onDialog)
         },
     )
@@ -131,10 +135,13 @@ private fun workspaceSubtitle(workspace: Workspace): String {
 }
 
 @Composable
-private fun SessionActions(session: SessionViewModel, onStarRequested: () -> Unit) {
-    val state by session.uiState.collectAsStateWithLifecycle()
-    StarButton(state) { if (!state.isStarred) onStarRequested(); session.toggleStar() }
-    IconButton(onClick = session::refresh) { Icon(Icons.Filled.Refresh, contentDescription = "Refresh") }
+private fun SubscribeButton(isSubscribed: Boolean, onToggle: () -> Unit) {
+    IconButton(onClick = onToggle) {
+        Icon(
+            if (isSubscribed) Icons.Filled.Notifications else Icons.Outlined.Notifications,
+            contentDescription = if (isSubscribed) "Stop notifications for this workspace" else "Notify me when an agent in this workspace finishes",
+        )
+    }
 }
 
 /** The Conductor link of the open session opens the workspace at that session, so it replaces the workspace link. */

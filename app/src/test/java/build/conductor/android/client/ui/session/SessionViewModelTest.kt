@@ -9,7 +9,8 @@ import build.conductor.android.client.MainDispatcherRule
 import build.conductor.android.client.data.AgentStatus
 import build.conductor.android.client.data.RecentCache
 import build.conductor.android.client.data.api.ApiException
-import build.conductor.android.client.data.settings.StarredSessions
+import build.conductor.android.client.data.api.SessionStatus
+import build.conductor.android.client.data.settings.SessionSightings
 import build.conductor.android.client.data.transcript.Delivery
 import build.conductor.android.client.data.transcript.TranscriptItem
 import build.conductor.android.client.data.transcript.TranscriptSnapshot
@@ -309,35 +310,40 @@ class SessionViewModelTest {
     }
 
     @Test
-    fun `the star follows the starred sessions store`() = runTest {
-        val starred = RecordingStarredSessions()
-        val viewModel = SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", starred)
+    fun `the screen records each new status, and a new time of a settled status`() = runTest {
+        val sightings = RecordingSightings()
+        repository.sessionStatusValue = "working"
+        val viewModel = SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", sightings)
         runCurrent()
 
-        viewModel.toggleStar()
+        viewModel.refresh()
+        runCurrent()
+        repository.sessionStatusValue = "idle"
+        repeat(2) {
+            viewModel.refresh()
+            runCurrent()
+        }
+        repository.sessionStatusTimes[FakeConductorRepository.SESSION_ID] = "2026-10-05T07:00:00Z"
+        viewModel.refresh()
         runCurrent()
 
-        assertTrue(viewModel.uiState.value.isStarred)
-        assertEquals(setOf(FakeConductorRepository.SESSION_ID), starred.starredIds.value)
-        assertEquals("idle", starred.starredStatus)
-        viewModel.toggleStar()
-        runCurrent()
-        assertFalse(viewModel.uiState.value.isStarred)
+        val time = FakeConductorRepository.DEFAULT_TIME
+        assertEquals(listOf("working" to time, "idle" to time, "idle" to "2026-10-05T07:00:00Z"), sightings.statuses)
     }
 
     @Test
-    fun `a starred session records the open question that the screen shows, once`() = runTest {
-        val starred = RecordingStarredSessions(starredIds = MutableStateFlow(setOf(FakeConductorRepository.SESSION_ID)))
+    fun `the screen records the open question that it shows, once`() = runTest {
+        val sightings = RecordingSightings()
         repository.sessionStatusValue = "working"
         repository.addQuestion("t1")
-        val viewModel = SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", starred)
+        val viewModel = SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", sightings)
         viewModel.onVisible()
         runCurrent()
 
         repository.addAgentText("Still waiting")
         advanceTimeBy(3_001)
 
-        assertEquals(listOf("t1"), starred.seenQuestionIds)
+        assertEquals(listOf("t1"), sightings.seenQuestionIds)
         viewModel.onHidden()
     }
 
@@ -425,21 +431,12 @@ class SessionViewModelTest {
     }
 }
 
-private class RecordingStarredSessions(override val starredIds: MutableStateFlow<Set<String>> = MutableStateFlow(emptySet())) : StarredSessions {
-    var starredStatus: String? = null
+private class RecordingSightings : SessionSightings {
+    val statuses = mutableListOf<Pair<String, String>>()
     val seenQuestionIds = mutableListOf<String>()
 
-    override suspend fun star(sessionId: String, title: String, currentStatus: String?) {
-        starredIds.value = setOf(sessionId)
-        starredStatus = currentStatus
-    }
-
-    override suspend fun unstar(sessionId: String) {
-        starredIds.value = emptySet()
-    }
-
-    override suspend fun recordStatus(sessionId: String, status: String) {
-        starredStatus = status
+    override suspend fun recordStatus(status: SessionStatus) {
+        statuses += status.status to status.updatedAt
     }
 
     override suspend fun recordSeenQuestion(sessionId: String, toolUseId: String) {
