@@ -59,15 +59,27 @@ class PullRequestViewModel(
     private val state = MutableStateFlow(PullRequestUiState())
     val uiState: StateFlow<PullRequestUiState> = state.asStateFlow()
     private var lookupJob: Job? = null
+    private val changeJobs = mutableMapOf<Int, Job>()
     private var isConnectedNow = false
 
     init {
         viewModelScope.launch {
             isConnected.distinctUntilChanged().collect { connected ->
                 isConnectedNow = connected
-                if (connected) lookUp() else state.update { PullRequestUiState(lookup = StackLookup.NotConnected) }
+                if (connected) lookUp() else disconnect()
             }
         }
+    }
+
+    private fun disconnect() {
+        lookupJob?.cancel()
+        cancelChangeLoads()
+        state.update { PullRequestUiState(lookup = StackLookup.NotConnected) }
+    }
+
+    private fun cancelChangeLoads() {
+        changeJobs.values.forEach { it.cancel() }
+        changeJobs.clear()
     }
 
     /** Reads the stack again; the selected tier stays when it is still in the stack. */
@@ -91,6 +103,7 @@ class PullRequestViewModel(
         } catch (exception: ApiException) {
             StackLookup.Failed(exception.message.orEmpty(), exception is ApiException.Unauthorized)
         }
+        cancelChangeLoads()
         state.update { current -> current.copy(lookup = lookup, selectedNumber = keptSelection(current.selectedNumber, lookup), changes = emptyMap()) }
         if (state.value.isShowingChanges) loadChanges()
     }
@@ -117,10 +130,10 @@ class PullRequestViewModel(
         val repository = repository ?: return
         if (state.value.changes[number].let { it is LoadState.Loaded || it is LoadState.Loading }) return
         state.update { it.copy(changes = it.changes + (number to LoadState.Loading)) }
-        viewModelScope.launch {
+        changeJobs[number] = viewModelScope.launch {
             val loaded = try {
                 val files = github.changedFiles(repository, number)
-                state.update { it.copy(collapsedFolders = it.collapsedFolders + (number to initiallyCollapsedFolders(files))) }
+                state.update { if (number in it.collapsedFolders) it else it.copy(collapsedFolders = it.collapsedFolders + (number to initiallyCollapsedFolders(files))) }
                 LoadState.Loaded(files)
             } catch (exception: ApiException) {
                 LoadState.Failed(exception.message.orEmpty(), exception.isRetryable)

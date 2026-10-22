@@ -7,7 +7,10 @@ import kotlinx.serialization.Serializable
 data class GitHubUser(val login: String, val name: String? = null)
 
 @Serializable
-data class GitHubBranch(val ref: String)
+data class GitHubBranch(val ref: String, val repo: GitHubRepositoryRef? = null)
+
+@Serializable
+data class GitHubRepositoryRef(@SerialName("full_name") val fullName: String)
 
 /** The list endpoint leaves out [additions], [deletions] and [changedFiles]. */
 @Serializable

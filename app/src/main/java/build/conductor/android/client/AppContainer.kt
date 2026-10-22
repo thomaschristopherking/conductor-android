@@ -85,7 +85,7 @@ class AppContainer(context: Context) {
         createConductorApi(apiKey = { (apiKeyState.value as? ApiKeyState.Present)?.apiKey }),
     )
 
-    val workspaceArchiver = WorkspaceArchiver(repository, applicationScope)
+    val workspaceArchiver = WorkspaceArchiver(repository, CoroutineScope(applicationScope.coroutineContext + Dispatchers.Main.immediate))
 
     val questionScanner = QuestionScanner(repository)
 

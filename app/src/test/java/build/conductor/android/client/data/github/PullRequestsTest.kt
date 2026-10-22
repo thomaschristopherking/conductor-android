@@ -49,6 +49,19 @@ class PullRequestsTest {
     }
 
     @Test
+    fun `a pull request from a fork never joins a stack or matches by branch name`() {
+        val workspacePullRequest = pullRequest(1, "conductor/push", base = "main").withRepositories("example-org/example-repo")
+        val fork = pullRequest(2, "main", base = "main").withRepositories("someone/example-repo", "example-org/example-repo")
+        val forkNamed = pullRequest(3, "push").withRepositories("someone/example-repo", "example-org/example-repo")
+
+        assertEquals(listOf(1), chainedStackNumbers(workspacePullRequest, listOf(fork, workspacePullRequest)))
+        assertNull(findWorkspacePullRequest(listOf(forkNamed), WorkspaceKey(null, "push")))
+    }
+
+    private fun GitHubPullRequest.withRepositories(head: String, base: String = head) =
+        copy(head = this.head.copy(repo = GitHubRepositoryRef(head)), base = this.base.copy(repo = GitHubRepositoryRef(base)))
+
+    @Test
     fun `the state comes from merged, closed and draft`() {
         assertEquals(PullRequestState.MERGED, PullRequestState.of(pullRequest(1, "a", state = "closed").copy(mergedAt = "2026-10-01T00:00:00Z")))
         assertEquals(PullRequestState.CLOSED, PullRequestState.of(pullRequest(1, "a", state = "closed")))

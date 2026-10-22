@@ -91,7 +91,7 @@ data class FileChange(
 fun findWorkspacePullRequest(candidates: List<GitHubPullRequest>, workspace: WorkspaceKey): GitHubPullRequest? {
     val linked = workspace.number?.let { number -> candidates.filter { it.body.orEmpty().contains(workspaceLink(number)) } }.orEmpty()
     val branchSuffix = branchName(workspace.name)
-    val named = candidates.filter { it.head.ref == branchSuffix || it.head.ref.endsWith("/$branchSuffix") }
+    val named = candidates.filter { !it.isFromFork && (it.head.ref == branchSuffix || it.head.ref.endsWith("/$branchSuffix")) }
     return preferOpen(linked) ?: preferOpen(named)
 }
 
@@ -109,11 +109,15 @@ private fun branchName(workspaceName: String): String = workspaceName.trim().low
  */
 fun chainedStackNumbers(pullRequest: GitHubPullRequest, candidates: List<GitHubPullRequest>): List<Int> {
     if (pullRequest.state != OPEN_STATE) return listOf(pullRequest.number)
-    val open = candidates.filter { it.state == OPEN_STATE && it.number != pullRequest.number }
+    val open = candidates.filter { it.state == OPEN_STATE && !it.isFromFork && it.number != pullRequest.number }
     val below = generateSequence(pullRequest) { tier -> open.firstOrNull { it.head.ref == tier.base.ref } }.drop(1).take(open.size).toList()
     val above = generateSequence(pullRequest) { tier -> open.firstOrNull { it.base.ref == tier.head.ref } }.drop(1).take(open.size).toList()
     return (above.reversed() + pullRequest + below).map { it.number }.distinct()
 }
+
+/** A branch of a fork can have the same name as a branch of the repository, so it cannot link a stack. */
+private val GitHubPullRequest.isFromFork: Boolean
+    get() = head.repo?.fullName?.let { !it.equals(base.repo?.fullName, ignoreCase = true) } ?: false
 
 fun GitHubPullRequest.toSummary() = PullRequestSummary(
     number = number,

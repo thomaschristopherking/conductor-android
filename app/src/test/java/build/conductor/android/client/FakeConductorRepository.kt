@@ -18,6 +18,7 @@ import build.conductor.android.client.data.api.Session
 import build.conductor.android.client.data.api.SessionStatus
 import build.conductor.android.client.data.api.Workspace
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.serialization.json.Json
@@ -119,6 +120,8 @@ class FakeConductorRepository : ConductorRepository {
     override suspend fun renameWorkspace(workspaceId: String, name: String) = workspace(workspaceId, name)
 
     override suspend fun archiveWorkspace(workspaceId: String): ArchivedWorkspace {
+        // A real call suspends, so a cancelled caller fails here as it does with Retrofit.
+        yield()
         archiveFailure?.let { throw it }
         archivedWorkspaceIds += workspaceId
         return ArchivedWorkspace(workspaceId, "archived")

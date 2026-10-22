@@ -5,12 +5,12 @@ import build.conductor.android.client.data.api.Workspace
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -23,14 +23,17 @@ data class ArchiveState(
     val undoable: Workspace? = null,
 )
 
-/** Every screen shares one archiver, so a workspace archived on one screen leaves every list. [scope] outlives the screens. */
+/**
+ * Every screen shares one archiver, so a workspace archived on one screen leaves every list. [scope] outlives the screens; the app
+ * runs it on the main thread, so the undo window and the user's taps do not race.
+ */
 class WorkspaceArchiver(private val repository: ConductorRepository, private val scope: CoroutineScope) {
     private val state = MutableStateFlow(ArchiveState())
     val archiveState: StateFlow<ArchiveState> = state.asStateFlow()
-    private val failures = MutableSharedFlow<String>(extraBufferCapacity = MAX_QUEUED_FAILURES)
+    private val failures = Channel<String>(Channel.BUFFERED)
 
-    /** One message for each archive call that failed. */
-    val failureMessages: SharedFlow<String> = failures.asSharedFlow()
+    /** One message for each archive call that failed. A message waits until a screen shows it. */
+    val failureMessages: Flow<String> = failures.receiveAsFlow()
     private var undoWindowJob: Job? = null
 
     /** Hides the workspace now and archives it when the undo window closes. A workspace in an open window is archived at once. */
@@ -40,7 +43,8 @@ class WorkspaceArchiver(private val repository: ConductorRepository, private val
         state.update { it.copy(pendingIds = it.pendingIds + workspace.id, undoable = workspace) }
         undoWindowJob = scope.launch {
             delay(UNDO_WINDOW_MILLIS)
-            closeUndoWindow()?.let { send(it) }
+            // The timer must not cancel its own job, so it takes the workspace without closeUndoWindow.
+            takeUndoable(workspace.id)?.let { send(it) }
         }
     }
 
@@ -56,10 +60,18 @@ class WorkspaceArchiver(private val repository: ConductorRepository, private val
     }
 
     private fun closeUndoWindow(): Workspace? {
-        val workspace = state.value.undoable ?: return null
         undoWindowJob?.cancel()
-        state.update { it.copy(undoable = null) }
-        return workspace
+        return takeUndoable(state.value.undoable?.id ?: return null)
+    }
+
+    /** Clears the undo window of [workspaceId] in one step, so only one caller gets the workspace. */
+    private fun takeUndoable(workspaceId: String): Workspace? {
+        var taken: Workspace? = null
+        state.update { current ->
+            taken = current.undoable?.takeIf { it.id == workspaceId }
+            if (taken == null) current else current.copy(undoable = null)
+        }
+        return taken
     }
 
     private suspend fun send(workspace: Workspace) {
@@ -67,7 +79,7 @@ class WorkspaceArchiver(private val repository: ConductorRepository, private val
             archiveOrCheck(workspace.id)
             true
         } catch (exception: ApiException) {
-            failures.tryEmit("Could not archive \"${workspace.name}\". ${exception.message}")
+            failures.trySend("Could not archive \"${workspace.name}\". ${exception.message}")
             false
         }
         state.update { current ->
@@ -95,7 +107,6 @@ class WorkspaceArchiver(private val repository: ConductorRepository, private val
 
     companion object {
         const val UNDO_WINDOW_MILLIS = 5_000L
-        private const val MAX_QUEUED_FAILURES = 8
     }
 }
 
