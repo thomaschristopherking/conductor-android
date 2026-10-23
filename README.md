@@ -45,6 +45,11 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
   - When the agent asks you a question, the chat shows the question with its options. Choose the options, or type in "Other", then tap "Send answers".
   - While the agent works, the app polls every 3 seconds for new messages only.
   - The badge shows "Working", "Waiting for you" (the API status `idle`) or "Error".
+  - Type `/` in the composer to see the skills and commands of the session, as in the Conductor desktop app. More letters make the list shorter. Tap a name to put it in the draft.
+  - The list comes from the `init` event that Claude Code writes at the start of each turn. A new session shows the list after its first turn. A Codex or Cursor session shows no list.
+- **Model and effort (Claude sessions).** Two buttons above the composer show the model and the effort of the session. The model menu has the Claude models of the desktop app.
+  - A choice sends `/model` or `/effort` to the agent as a prompt, for example `/model claude-opus-5-5[1m]`. The change applies from the next turn.
+  - The buttons are off while the agent works, because a prompt during a turn reaches the agent as text, not as a command.
 - **Notifications (optional).** Tap the bell at the top of a workspace to subscribe to it. The app notifies you when an agent in that workspace stops working, stops with an error, or asks you a question. Tap the bell again to stop the notifications.
   - Conductor sends no push messages, so the app checks the workspaces itself. A background service does the checks while the app is closed. Android shows a small notification, "Watching subscribed workspaces", while the service runs. You can hide that notification in the system settings of the app.
   - While an agent works, the app checks every 15 seconds and keeps the phone awake between checks. When no agent works, the app checks every 60 seconds and lets the phone sleep.
@@ -101,6 +106,8 @@ The unit tests run on the JVM. They do not need a device or the network.
 - `ui/session/TranscriptScrollTest.kt` shows the chat list in Robolectric. It tests the scroll position and the button that goes to the newest message.
 - `ui/session/MessageImageTest.kt` tests the card for a picture that is a workspace file.
 - `ui/session/CodeBlockTest.kt` tests that a message shows in its first frame, that a long code line wraps, and that the copy buttons copy the code or the full message.
+- `data/transcript/AgentSetupTest.kt` reads the commands and the model from `init` events and from `/model` and `/effort` prompts. `data/ClaudeModelSwitchTest.kt` tests the model names of the commands.
+- `ui/session/SlashCommandSuggestionsTest.kt` tests the filter of the command list. `ui/session/ComposerTest.kt` shows the composer in Robolectric. It tests a chosen command, the cursor after it, and the model menu.
 - `ui/workspace/SessionTabRowTest.kt` and `ui/workspace/WorkspaceDetailViewModelTest.kt` test the session tabs, which tab opens first, and which tabs the app scans for questions.
 
 The fixtures in `app/src/test/resources/fixtures/` are scrubbed copies of live API responses. To capture them again, run:
@@ -151,6 +158,7 @@ I made these decisions without a person to ask.
 21. **Long transcripts.** The app reads the first page of a transcript alone. If more pages follow, it reads 8 pages at a time.
 22. **Background service.** The API has no push messages, webhooks or event stream, so true push is not possible. The app uses a foreground service of the type `specialUse`. Android 15 limits the type `dataSync` to 6 hours a day, and it does not let a `dataSync` service start after a restart of the phone. The type `specialUse` has neither limit.
 23. **Subscriptions replace stars.** Build 9 and earlier notified about starred sessions. This build removes the stars. Subscribe to the workspace instead.
+24. **Model switch.** The API takes no model on a sent message. The live API drops an unknown `model` field, and the turn runs on the old model. Claude Code's own `/model` command changes the model of the running session, so the app sends that command. See `docs/API_NOTES.md`.
 
 ## Known limitations
 
@@ -167,6 +175,7 @@ I made these decisions without a person to ask.
 - **Pull requests.** The Conductor API has no branch or pull request field, so the app needs a GitHub token and a link or a branch name to find the pull request. A pull request that is older than the 100 most recently updated ones is not found.
 - **Finding a question costs requests.** The status stays "working" while a question waits, so the app reads the transcript to find it. The API returns messages oldest first, so the first look at a long session reads the whole transcript, 100 messages for each request. Later looks read only new messages.
 - **Codex questions.** I tested questions from Claude sessions only.
+- **Model switch.** Conductor does not know about a `/model` or `/effort` prompt. The session object and the desktop app still show the earlier model. A model or effort that you change in the desktop app shows on the phone after the next turn starts, and an effort change does not show. I did not test if a restart of the agent process keeps the new model.
 
 ## Contributing
 

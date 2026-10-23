@@ -156,9 +156,9 @@ object TranscriptParser {
     private val TOOL_SUMMARY_KEYS = listOf("description", "command", "file_path", "path", "pattern", "url", "query", "prompt", "subject")
 }
 
-private fun JsonObject.obj(name: String): JsonObject? = this[name] as? JsonObject
+internal fun JsonObject.obj(name: String): JsonObject? = this[name] as? JsonObject
 
-private fun JsonObject.string(name: String): String? = (this[name] as? JsonPrimitive)?.contentOrNull()
+internal fun JsonObject.string(name: String): String? = (this[name] as? JsonPrimitive)?.contentOrNull()
 
 private fun JsonObject.boolean(name: String): Boolean? = (this[name] as? JsonPrimitive)?.booleanOrNull
 
