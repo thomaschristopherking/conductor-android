@@ -150,6 +150,20 @@ From the spec:
 - Effort levels: `claude`: low, medium, high, xhigh, max. `codex`: none, low, medium, high, xhigh, max, ultra. `cursor`: low, medium, high, xhigh.
 - Default model when the caller omits it: `claude`: `opus-5-1m`. `codex`: `gpt-6.1-sol`. `cursor`: `composer-2.5`.
 
+## Change the model of a session
+
+The desktop app keeps the model of each message in `content.config.model` and `content.config.thinkingLevel`. `POST /v0/sessions/{id}/messages` accepts only `messageId`, `message` and `source`. On 2026-10-23, a message with an extra `"model": "haiku-4-5"` field ran on the old model, without an error.
+
+Claude Code's `/model` and `/effort` commands work as a message:
+
+- `/model claude-haiku-4-5` answers "Set model to `Haiku 4.5` for this session only". The next turns run on that model.
+- The command needs the Claude Code name: `claude-` and the model id, with `[1m]` in place of `-1m`. For example, `opus-5-5-1m` is `claude-opus-5-5[1m]`. The id alone (`haiku-4-5`) answers "Model 'haiku-4-5' not found".
+- The `init` event of the turn that runs `/model` still names the earlier model. The `init` event of the next turn names the new model.
+- `/effort` takes `low`, `medium`, `high`, `xhigh`, `max` or `auto`.
+- The session object still reports the earlier `model`, and `content.config.model` of later messages does not change.
+
+The `init` event also lists `slash_commands`: the skills and the commands that a prompt can start with `/`. `terminal_slash_commands` lists commands for the terminal only, and the app does not show them.
+
 ## Deep links
 
 Workspaces and sessions have a `deepLink`, for example `conductor://workspace?id=<workspaceId>&session=<sessionId>`.

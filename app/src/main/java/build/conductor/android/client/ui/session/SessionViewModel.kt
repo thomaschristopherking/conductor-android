@@ -3,12 +3,15 @@ package build.conductor.android.client.ui.session
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import build.conductor.android.client.data.AgentStatus
+import build.conductor.android.client.data.ClaudeModelSwitch
+import build.conductor.android.client.data.ModelSelection
 import build.conductor.android.client.data.ConductorRepository
 import build.conductor.android.client.data.RecentCache
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.Message
 import build.conductor.android.client.data.api.SessionStatus
 import build.conductor.android.client.data.settings.SessionSightings
+import build.conductor.android.client.data.transcript.AgentSetup
 import build.conductor.android.client.data.transcript.Delivery
 import build.conductor.android.client.data.transcript.Question
 import build.conductor.android.client.data.transcript.QuestionAnswer
@@ -51,7 +54,15 @@ data class SessionUiState(
     val openQuestion: TranscriptItem.Questions? = null,
     /** One answer for each question in [openQuestion]. */
     val questionAnswers: List<QuestionAnswer> = emptyList(),
-)
+    /** The skills and commands that the agent offers after `/`, from the last turn that it started. */
+    val slashCommands: List<String> = emptyList(),
+    /** The model and effort of a Claude session; null for a session of a different agent. */
+    val modelSelection: ModelSelection? = null,
+) {
+    /** A switch prompt sent during a turn would reach the agent as text, not as a command. */
+    val canSwitchModel: Boolean
+        get() = modelSelection != null && status.isSettled && !isSending
+}
 
 sealed interface SessionEvent {
     data class ShowMessage(val text: String) : SessionEvent
@@ -92,6 +103,9 @@ class SessionViewModel(
     private var isVisible = false
     private var hasLoaded = false
 
+    /** The model and effort that the session object reports; a switch in the transcript overrides them. */
+    private var sessionSelection: ModelSelection? = null
+
     /** Polls that continue after a send while the status is still idle, because a queued message reports idle until delivery. */
     private var deliveryGracePolls = 0
 
@@ -111,7 +125,9 @@ class SessionViewModel(
                 val session = async { repository.session(sessionId) }
                 pollOnce()
                 val loaded = session.await()
+                sessionSelection = ClaudeModelSwitch.sessionSelection(loaded.model, loaded.effort)
                 state.update { it.copy(title = loaded.name ?: it.title, deepLink = loaded.deepLink, isLoading = false) }
+                publishItems()
             }
             hasLoaded = true
             startPollingIfNeeded()
@@ -144,6 +160,20 @@ class SessionViewModel(
     }
 
     fun onDraftChange(text: String) = state.update { it.copy(draft = text) }
+
+    fun chooseSlashCommand(name: String) = onDraftChange(completeSlashCommand(name))
+
+    fun switchModel(model: String) {
+        if (model != state.value.modelSelection?.model) submitSwitch(ClaudeModelSwitch.modelCommand(model))
+    }
+
+    fun switchEffort(effort: String?) {
+        if (effort != state.value.modelSelection?.effort) submitSwitch(ClaudeModelSwitch.effortCommand(effort))
+    }
+
+    private fun submitSwitch(command: String) {
+        if (state.value.canSwitchModel) submitPrompt(command, onFailure = {})
+    }
 
     fun send() {
         val text = state.value.draft.trim()
@@ -314,9 +344,17 @@ class SessionViewModel(
                 items = items + pendingPrompts.map { it.prompt },
                 openQuestion = openQuestion,
                 questionAnswers = answersFor(openQuestion, current),
+                slashCommands = transcript.setup.slashCommands,
+                modelSelection = currentModelSelection(),
             )
         }
         openQuestion?.let { recordSeenQuestion(it.toolUseId) }
+    }
+
+    /** A switch prompt that waits for delivery already counts, so the picker shows the chosen value at once. */
+    private fun currentModelSelection(): ModelSelection? {
+        val base = sessionSelection ?: return null
+        return ClaudeModelSwitch.currentSelection(base, transcript.setup.afterPrompts(pendingPrompts.map { it.prompt.text }))
     }
 
     /** The user sees the question here, so the background check must not notify about it. */
@@ -345,12 +383,15 @@ private class TranscriptBuffer(saved: TranscriptSnapshot?) {
         private set
     var lastMessageId: String? = saved?.lastMessageId
         private set
+    var setup: AgentSetup = saved?.setup ?: AgentSetup()
+        private set
 
-    fun snapshot() = TranscriptSnapshot(items, lastMessageId, seenMessageIds.toSet())
+    fun snapshot() = TranscriptSnapshot(items, lastMessageId, seenMessageIds.toSet(), setup)
 
     fun append(messages: List<Message>): List<TranscriptItem> {
         val fresh = messages.filter { seenMessageIds.add(it.id) }
         messages.lastOrNull()?.let { lastMessageId = it.id }
+        setup = setup.after(fresh)
         val added = TranscriptParser.parse(fresh)
         items = items + added
         return added

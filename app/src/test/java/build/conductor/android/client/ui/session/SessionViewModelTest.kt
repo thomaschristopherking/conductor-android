@@ -7,6 +7,7 @@ import app.cash.turbine.test
 import build.conductor.android.client.FakeConductorRepository
 import build.conductor.android.client.MainDispatcherRule
 import build.conductor.android.client.data.AgentStatus
+import build.conductor.android.client.data.ModelSelection
 import build.conductor.android.client.data.RecentCache
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.SessionStatus
@@ -120,6 +121,82 @@ class SessionViewModelTest {
         runCurrent()
         assertEquals(4, reopened.uiState.value.items.size)
         assertEquals(listOf(null, "m3"), repository.messageCursors)
+    }
+
+    @Test
+    fun `the commands of the last init event show, and a reopened session keeps them`() = runTest {
+        repository.addInit("claude-sonnet-4-6", listOf("compact"))
+        repository.addInit("claude-sonnet-4-6", listOf("compact", "review"))
+        val transcripts = RecentCache<String, TranscriptSnapshot>(maxEntries = 4)
+        SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", transcripts = transcripts)
+        runCurrent()
+        repository.messagesGate = CompletableDeferred()
+
+        val reopened = SessionViewModel(repository, FakeConductorRepository.SESSION_ID, "Session", transcripts = transcripts)
+        runCurrent()
+
+        assertEquals(listOf("compact", "review"), reopened.uiState.value.slashCommands)
+        repository.messagesGate?.complete(Unit)
+    }
+
+    @Test
+    fun `a chosen command replaces the draft`() = runTest {
+        val viewModel = openSession()
+        viewModel.onDraftChange("/rev")
+
+        viewModel.chooseSlashCommand("review")
+
+        assertEquals("/review ", viewModel.uiState.value.draft)
+    }
+
+    @Test
+    fun `a model switch sends a model prompt, and the picker shows the new model at once`() = runTest {
+        repository.sessionModel = "sonnet-4-6"
+        repository.sessionEffort = "high"
+        repository.addInit("claude-sonnet-4-6", emptyList())
+        val viewModel = openSession()
+        assertEquals(ModelSelection("claude", "sonnet-4-6", "high"), viewModel.uiState.value.modelSelection)
+
+        viewModel.switchModel("opus-5-5-1m")
+
+        assertEquals("opus-5-5-1m", viewModel.uiState.value.modelSelection?.model)
+        runCurrent()
+        assertEquals("/model claude-opus-5-5[1m]", repository.sentMessages.single().first)
+        viewModel.onHidden()
+    }
+
+    @Test
+    fun `an effort switch to the default sends auto`() = runTest {
+        repository.sessionModel = "sonnet-4-6"
+        repository.sessionEffort = "high"
+        val viewModel = openSession()
+
+        viewModel.switchEffort(null)
+        runCurrent()
+
+        assertEquals("/effort auto", repository.sentMessages.single().first)
+        assertNull(viewModel.uiState.value.modelSelection?.effort)
+        viewModel.onHidden()
+    }
+
+    @Test
+    fun `no switch goes out while the agent works, for the same model, or for a different agent`() = runTest {
+        repository.sessionModel = "sonnet-4-6"
+        repository.sessionStatusValue = "working"
+        val working = openSession()
+        assertFalse(working.uiState.value.canSwitchModel)
+        working.switchModel("haiku-4-5")
+        working.onHidden()
+
+        repository.sessionStatusValue = "idle"
+        openSession().switchModel("sonnet-4-6")
+        repository.sessionModel = "gpt-6.1-sol"
+        val codex = openSession()
+        assertNull(codex.uiState.value.modelSelection)
+        codex.switchModel("haiku-4-5")
+        runCurrent()
+
+        assertTrue(repository.sentMessages.isEmpty())
     }
 
     @Test

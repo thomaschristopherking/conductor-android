@@ -28,6 +28,8 @@ class FakeConductorRepository : ConductorRepository {
     override val unauthorizedEvents: SharedFlow<Unit> = MutableSharedFlow()
 
     var sessionStatusValue = "idle"
+    var sessionModel: String? = null
+    var sessionEffort: String? = null
     val transcript = mutableListOf<Message>()
     val messageCursors = mutableListOf<String?>()
     val sentMessages = mutableListOf<Pair<String, String>>()
@@ -84,6 +86,12 @@ class FakeConductorRepository : ConductorRepository {
         """{"type":"agent","rawPayload":{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"$toolUseId","content":[{"type":"text","text":"$text"}]}]}}}""",
     )
 
+    /** The event that Claude Code writes at the start of each turn. */
+    fun addInit(model: String, slashCommands: List<String>) = addMessage(
+        "agent",
+        """{"type":"agent","rawPayload":{"type":"system","subtype":"init","model":"$model","slash_commands":${slashCommands.joinToString(",", "[", "]") { "\"$it\"" }}}}""",
+    )
+
     fun addTurnEnd() = addMessage("agent", """{"type":"agent","rawPayload":{"type":"result","subtype":"success","is_error":false}}""")
 
     private fun addMessage(type: String, content: String) {
@@ -138,7 +146,8 @@ class FakeConductorRepository : ConductorRepository {
         return Session(id = "s-created", deepLink = "conductor://x", name = request.name)
     }
 
-    override suspend fun session(sessionId: String) = Session(id = sessionId, deepLink = "conductor://workspace?id=w1&session=$sessionId", name = "Fix CI")
+    override suspend fun session(sessionId: String) =
+        Session(id = sessionId, deepLink = "conductor://workspace?id=w1&session=$sessionId", name = "Fix CI", model = sessionModel, effort = sessionEffort)
 
     override suspend fun sessionStatus(sessionId: String): SessionStatus =
         callOrder.add("status").let { _ -> SessionStatus("w1", sessionId, sessionStatuses[sessionId] ?: sessionStatusValue, sessionStatusTimes[sessionId] ?: DEFAULT_TIME) }

@@ -18,15 +18,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -86,7 +83,7 @@ private fun SessionBody(state: SessionUiState, viewModel: SessionViewModel) {
             }
         }
         HorizontalDivider()
-        Composer(state, onDraftChange = viewModel::onDraftChange, onSend = { transcriptScroll.followNewest(); viewModel.send() })
+        Composer(state, composerActions(viewModel, onSend = { transcriptScroll.followNewest(); viewModel.send() }))
     }
 }
 
@@ -177,6 +174,14 @@ private fun SessionTranscriptRow(item: TranscriptItem, openQuestionId: String?, 
     }
 }
 
+private fun composerActions(viewModel: SessionViewModel, onSend: () -> Unit) = ComposerActions(
+    onDraftChange = viewModel::onDraftChange,
+    onChooseCommand = viewModel::chooseSlashCommand,
+    onSwitchModel = viewModel::switchModel,
+    onSwitchEffort = viewModel::switchEffort,
+    onSend = onSend,
+)
+
 private fun questionForm(state: SessionUiState, viewModel: SessionViewModel, onSend: () -> Unit) = QuestionForm(
     answers = state.questionAnswers,
     isSending = state.isSending,
@@ -184,31 +189,3 @@ private fun questionForm(state: SessionUiState, viewModel: SessionViewModel, onS
     onOtherTextChange = viewModel::onOtherTextChange,
     onSend = onSend,
 )
-
-@Composable
-private fun Composer(state: SessionUiState, onDraftChange: (String) -> Unit, onSend: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(8.dp),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedTextField(
-            value = state.draft,
-            onValueChange = onDraftChange,
-            placeholder = { Text(composerPlaceholder(state)) },
-            maxLines = COMPOSER_MAX_LINES,
-            modifier = Modifier.weight(1f),
-        )
-        FilledIconButton(onClick = onSend, enabled = state.draft.isNotBlank() && !state.isSending) {
-            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
-        }
-    }
-}
-
-private fun composerPlaceholder(state: SessionUiState): String = when {
-    state.openQuestion != null -> "Or answer in your own words…"
-    state.status == AgentStatus.WORKING -> "Steer the agent…"
-    else -> "Message the agent…"
-}
-
-private const val COMPOSER_MAX_LINES = 6
