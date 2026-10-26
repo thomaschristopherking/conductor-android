@@ -5,6 +5,7 @@ package build.conductor.android.client.ui.pullrequest
 import build.conductor.android.client.FakeConductorRepository.Companion.workspace
 import build.conductor.android.client.MainDispatcherRule
 import build.conductor.android.client.data.api.ApiException
+import build.conductor.android.client.data.github.AppRelease
 import build.conductor.android.client.data.github.ChangeKind
 import build.conductor.android.client.data.github.DiffCount
 import build.conductor.android.client.data.github.FileChange
@@ -135,6 +136,8 @@ private class FakeGitHubRepository : GitHubRepository {
         fileRequests += number
         return listOf(FileChange("app/Main.kt", ChangeKind.MODIFIED, DiffCount(1, 1), patch = null, previousPath = null))
     }
+
+    override suspend fun newestAppRelease(repository: RepositoryName): AppRelease? = null
 }
 
 private fun summary(number: Int) = PullRequestSummary(

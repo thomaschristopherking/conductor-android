@@ -66,6 +66,13 @@ class PullRequestsTest {
         assertNull(stackPosition(listOf(14, 13), 99))
     }
 
+    @Test
+    fun `the build number is the last part of the tag`() {
+        assertEquals(14, buildNumberOf("v0.1.0-release.14"))
+        assertNull(buildNumberOf("v0.1.0-release.final"))
+        assertNull(buildNumberOf("untagged-30dc3809"))
+    }
+
     private fun GitHubPullRequest.withRepositories(head: String, base: String = head) =
         copy(head = this.head.copy(repo = GitHubRepositoryRef(head)), base = this.base.copy(repo = GitHubRepositoryRef(base)))
 

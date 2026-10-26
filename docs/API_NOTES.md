@@ -185,6 +185,7 @@ The app reads GitHub with the user's token:
 | `GET /repos/{owner}/{repo}/stacks?pull_request={n}` | The stack of the pull request, bottom first. `[]` when the pull request has no stack. A workspace list reads it once for each workspace that has a pull request. |
 | `GET /repos/{owner}/{repo}/pulls/{n}` | Title, state, additions, deletions and changed files of each tier. The list endpoint leaves out the numbers. |
 | `GET /repos/{owner}/{repo}/pulls/{n}/files?per_page=100&page={p}` | The changed files and their diffs, up to 3000 files. |
+| `GET /repos/thomaschristopherking/conductor-android/releases?per_page=20` | The newest build for the update button. The app skips drafts, and releases that have no `conductor-android.apk` yet. With a token that can push to the repository, the list also has drafts. |
 
 ## Fixtures
 

@@ -27,6 +27,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) requestedSession.value = sessionRouteFrom(intent)
         val container = (application as ConductorApplication).container
+        if (savedInstanceState == null) container.appUpdater.check()
         setContent {
             val colorScheme by container.colorScheme.collectAsStateWithLifecycle()
             colorScheme?.let { choice -> ConductorTheme(choice) { AppContent(container) } }

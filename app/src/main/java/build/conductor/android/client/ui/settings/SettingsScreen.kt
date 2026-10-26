@@ -64,6 +64,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     gitHubViewModel: GitHubSettingsViewModel,
     appearanceViewModel: AppearanceViewModel,
+    updateViewModel: AppUpdateViewModel,
     notice: String?,
     onKeySaved: () -> Unit,
     onBack: (() -> Unit)?,
@@ -90,6 +91,8 @@ fun SettingsScreen(
             GitHubSection(gitHubViewModel)
             HorizontalDivider()
             ColorSchemeSection(colorScheme, appearanceViewModel::selectColorScheme)
+            HorizontalDivider()
+            UpdateSection(updateViewModel)
         }
     }
 }

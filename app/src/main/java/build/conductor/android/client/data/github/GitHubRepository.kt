@@ -19,6 +19,9 @@ interface GitHubRepository {
     suspend fun stackPositions(repository: RepositoryName, workspaces: List<WorkspaceKey>): Map<WorkspaceKey, StackPosition>
 
     suspend fun changedFiles(repository: RepositoryName, number: Int): List<FileChange>
+
+    /** The published build with the highest build number, or null when no release has the APK yet. */
+    suspend fun newestAppRelease(repository: RepositoryName): AppRelease?
 }
 
 class ApiGitHubRepository(private val api: GitHubApi) : GitHubRepository {
@@ -74,6 +77,10 @@ class ApiGitHubRepository(private val api: GitHubApi) : GitHubRepository {
             if (batch.size < GitHubApi.PAGE_SIZE) break
         }
         files.map { it.toFileChange() }
+    }
+
+    override suspend fun newestAppRelease(repository: RepositoryName): AppRelease? = mapGitHubErrors {
+        newestAppRelease(api.releases(repository.owner, repository.name))
     }
 
     private companion object {

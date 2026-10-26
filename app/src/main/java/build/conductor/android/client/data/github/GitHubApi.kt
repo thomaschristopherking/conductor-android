@@ -37,7 +37,13 @@ interface GitHubApi {
     @GET("repos/{owner}/{repo}/stacks")
     suspend fun stacks(@Path("owner") owner: String, @Path("repo") repo: String, @Query("pull_request") number: Int): List<GitHubStack>
 
+    /** The most recently created releases first. */
+    @GET("repos/{owner}/{repo}/releases")
+    suspend fun releases(@Path("owner") owner: String, @Path("repo") repo: String, @Query("per_page") perPage: Int = RELEASE_PAGE_SIZE): List<GitHubRelease>
+
     companion object {
+        const val RELEASE_PAGE_SIZE = 20
+
         const val AUTHORIZATION_HEADER = "Authorization"
         const val PAGE_SIZE = 100
 

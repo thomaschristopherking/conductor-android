@@ -7,8 +7,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -21,8 +23,9 @@ import build.conductor.android.client.ui.home.HomeScreen
 import build.conductor.android.client.ui.home.HomeViewModel
 import build.conductor.android.client.ui.projects.ProjectsScreen
 import build.conductor.android.client.ui.projects.ProjectsViewModel
-import build.conductor.android.client.ui.session.SessionViewModel
 import build.conductor.android.client.ui.pullrequest.PullRequestViewModel
+import build.conductor.android.client.ui.session.SessionViewModel
+import build.conductor.android.client.ui.settings.AppUpdateViewModel
 import build.conductor.android.client.ui.settings.AppearanceViewModel
 import build.conductor.android.client.ui.settings.GitHubSettingsViewModel
 import build.conductor.android.client.ui.settings.SettingsScreen
@@ -35,6 +38,7 @@ import build.conductor.android.client.ui.workspaces.CreateWorkspaceScreen
 import build.conductor.android.client.ui.workspaces.CreateWorkspaceViewModel
 import build.conductor.android.client.ui.workspaces.WorkspacesScreen
 import build.conductor.android.client.ui.workspaces.WorkspacesViewModel
+import build.conductor.android.client.update.newerRelease
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 
@@ -62,12 +66,14 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
                 viewModel = viewModel { SettingsViewModel(container.repository, container.apiKeyStore, container.apiKeyState) },
                 gitHubViewModel = viewModel { GitHubSettingsViewModel(container.gitHubRepository, container.gitHubTokenStore, container.gitHubToken) },
                 appearanceViewModel = viewModel { AppearanceViewModel(container.appearanceStore) },
+                updateViewModel = viewModel { AppUpdateViewModel(container.appUpdater) },
                 notice = entry.toRoute<SettingsRoute>().notice,
                 onKeySaved = { if (hasPrevious) navController.popBackStack() else navController.openHomeAsRoot() },
                 onBack = if (hasPrevious) ({ navController.popBackStack() }) else null,
             )
         }
         composable<HomeRoute> {
+            val updateState by container.appUpdater.updateState.collectAsStateWithLifecycle()
             HomeScreen(
                 viewModel = viewModel { HomeViewModel(container.repository, container.workspaceArchiver, container.homeSnapshots, container.stackPositions) },
                 actions = HomeActions(
@@ -76,6 +82,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
                     onOpenProjects = { navController.navigate(ProjectsRoute) },
                     onOpenSettings = { navController.navigate(SettingsRoute()) },
                 ),
+                hasUpdate = updateState.newerRelease != null,
             )
         }
         composable<ProjectsRoute> {

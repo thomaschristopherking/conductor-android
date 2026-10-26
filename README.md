@@ -10,6 +10,10 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
 
 - **Settings.** Paste a Conductor API key. The app tests the key with a read-only call (`GET /me`) before it saves the key. The key is encrypted with AES-GCM. The AES key stays in the Android Keystore. You can clear the key.
   - An optional GitHub token shows the pull requests and changes of a workspace. The app tests it with `GET /user` and encrypts it in the same way as the API key.
+- **App update.** When the app opens, it looks for a newer build on the Releases page. If one exists, a dot shows on the Settings icon of the home screen, and Settings shows "Update to build N".
+  - A tap downloads the APK and gives it to Android. Android shows its own dialog to confirm the update. The app restarts on the new build and keeps its data.
+  - The first time, Android asks you to allow "Install unknown apps" for Conductor.
+  - Only builds 14 and later can update themselves, because the release key signs them. A build that a different key signs cannot install over the installed app.
 - **Colour scheme.** Settings has three colour schemes. "Default" uses your wallpaper colours on Android 12 and later. "Neapolitan" uses strawberry, vanilla and chocolate. "Spumoni" uses pistachio, fior di latte and cherry. Both ice cream schemes have a light and a dark version.
 - **Workspaces (home screen).** All your workspaces, grouped by the sections that you made in the Conductor app. The sections come in the order that the API returns them. Workspaces with no section go under "Other workspaces". Each row shows the name, repository, status badge and last activity. Pull down to refresh.
   - With a GitHub token, a row whose pull request is part of a stack also shows its position, for example "3/12". Position 1 is the pull request that merges into the base branch. A filter chip shows archived workspaces. If the sections do not load, the list shows all workspaces with no headers and a message.
