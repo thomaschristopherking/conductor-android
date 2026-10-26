@@ -10,6 +10,10 @@ import build.conductor.android.client.data.HomeSnapshots
 import build.conductor.android.client.data.WorkspaceArchiver
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.Section
+import build.conductor.android.client.data.api.Workspace
+import build.conductor.android.client.data.github.StackPosition
+import build.conductor.android.client.data.github.StackPositions
+import kotlinx.coroutines.flow.MutableStateFlow
 import build.conductor.android.client.ui.components.LoadState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,6 +47,19 @@ class HomeViewModelTest {
 
         val groups = (viewModel.uiState.value.groups as LoadState.Loaded).value
         assertEquals(listOf("Interop", "Other workspaces"), groups.map { it.title })
+    }
+
+    @Test
+    fun `the loaded workspaces go to the stack positions, and the positions show in the state`() = runTest {
+        val stackPositions = RecordingStackPositions()
+        val viewModel = HomeViewModel(repository, WorkspaceArchiver(repository, backgroundScope), stackPositions = stackPositions)
+        advanceUntilIdle()
+
+        stackPositions.positions.value = mapOf("a" to StackPosition(3, 12))
+        runCurrent()
+
+        assertEquals(listOf(listOf("a", "b")), stackPositions.loads.map { workspaces -> workspaces.map { it.id }.sorted() })
+        assertEquals(mapOf("a" to StackPosition(3, 12)), viewModel.uiState.value.stackPositions)
     }
 
     @Test
@@ -150,5 +167,14 @@ private class MemoryHomeSnapshots : HomeSnapshots {
 
     override suspend fun clear() {
         saved = null
+    }
+}
+
+private class RecordingStackPositions : StackPositions {
+    override val positions = MutableStateFlow<Map<String, StackPosition>>(emptyMap())
+    val loads = mutableListOf<List<Workspace>>()
+
+    override fun load(workspaces: List<Workspace>) {
+        loads += workspaces
     }
 }

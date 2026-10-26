@@ -58,6 +58,14 @@ class PullRequestsTest {
         assertNull(findWorkspacePullRequest(listOf(forkNamed), WorkspaceKey(null, "push")))
     }
 
+    @Test
+    fun `a stack position counts from the bottom tier, and a lone pull request has none`() {
+        assertEquals(StackPosition(3, 12), stackPosition((12 downTo 1).toList(), 3))
+        assertEquals(StackPosition(2, 2), stackPosition(listOf(14, 13), 14))
+        assertNull(stackPosition(listOf(13), 13))
+        assertNull(stackPosition(listOf(14, 13), 99))
+    }
+
     private fun GitHubPullRequest.withRepositories(head: String, base: String = head) =
         copy(head = this.head.copy(repo = GitHubRepositoryRef(head)), base = this.base.copy(repo = GitHubRepositoryRef(base)))
 

@@ -28,6 +28,7 @@ import build.conductor.android.client.R
 import build.conductor.android.client.data.WorkspaceArchiver
 import build.conductor.android.client.data.WorkspaceState
 import build.conductor.android.client.data.api.Workspace
+import build.conductor.android.client.data.github.StackPosition
 import kotlinx.coroutines.flow.Flow
 
 /** What a list screen needs to archive a workspace with a swipe and to undo it. */
@@ -64,7 +65,7 @@ fun ArchiveSnackbars(undoable: Workspace?, archiving: WorkspaceArchiving, snackb
 
 /** A swipe towards the start archives the workspace. Screen readers get the same action from the actions menu. */
 @Composable
-fun SwipeToArchiveRow(workspace: Workspace, onClick: () -> Unit, onArchive: () -> Unit) {
+fun SwipeToArchiveRow(workspace: Workspace, stackPosition: StackPosition?, onClick: () -> Unit, onArchive: () -> Unit) {
     val isArchivable = WorkspaceState.from(workspace.state) != WorkspaceState.ARCHIVED
     SwipeToDismissBox(
         state = rememberSwipeToDismissBoxState(),
@@ -76,7 +77,7 @@ fun SwipeToArchiveRow(workspace: Workspace, onClick: () -> Unit, onArchive: () -
         gesturesEnabled = isArchivable,
         onDismiss = { onArchive() },
     ) {
-        WorkspaceRow(workspace, onClick)
+        WorkspaceRow(workspace, stackPosition, onClick)
     }
 }
 

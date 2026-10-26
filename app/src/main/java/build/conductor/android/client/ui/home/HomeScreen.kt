@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import build.conductor.android.client.data.api.Workspace
+import build.conductor.android.client.data.github.StackPosition
 import build.conductor.android.client.ui.components.EmptyView
 import build.conductor.android.client.ui.components.ErrorView
 import build.conductor.android.client.ui.components.LoadState
@@ -85,29 +86,32 @@ private fun HomeBody(state: HomeUiState, viewModel: HomeViewModel, onOpenWorkspa
             when (val groups = state.visibleGroups) {
                 LoadState.Loading -> LoadingView()
                 is LoadState.Failed -> ErrorView(groups.message, viewModel::load)
-                is LoadState.Loaded -> WorkspaceGroupList(groups.value, onOpenWorkspace, viewModel::archive)
+                is LoadState.Loaded -> WorkspaceGroupList(groups.value, state.stackPositions, WorkspaceRowActions(onOpenWorkspace, viewModel::archive))
             }
         }
     }
 }
 
+/** What a tap and a swipe on a workspace row do. */
+internal class WorkspaceRowActions(val onOpen: (Workspace) -> Unit, val onArchive: (Workspace) -> Unit)
+
 @Composable
-internal fun WorkspaceGroupList(groups: List<WorkspaceGroup>, onOpenWorkspace: (Workspace) -> Unit, onArchive: (Workspace) -> Unit) {
+internal fun WorkspaceGroupList(groups: List<WorkspaceGroup>, stackPositions: Map<String, StackPosition>, actions: WorkspaceRowActions) {
     if (groups.isEmpty()) {
         EmptyView("No workspaces", "Tap + at the top to start one in the cloud.")
         return
     }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        groups.forEach { group -> workspaceGroup(group, onOpenWorkspace, onArchive) }
+        groups.forEach { group -> workspaceGroup(group, stackPositions, actions) }
     }
 }
 
-private fun LazyListScope.workspaceGroup(group: WorkspaceGroup, onOpenWorkspace: (Workspace) -> Unit, onArchive: (Workspace) -> Unit) {
+private fun LazyListScope.workspaceGroup(group: WorkspaceGroup, stackPositions: Map<String, StackPosition>, actions: WorkspaceRowActions) {
     group.title?.let { title -> stickyHeader(key = "header/${group.key}") { SectionHeader(title) } }
     // A workspace can be in more than one section, so the key includes the group.
     items(group.workspaces, key = { "${group.key}/${it.id}" }) { workspace ->
         Column(modifier = Modifier.animateItem()) {
-            SwipeToArchiveRow(workspace, onClick = { onOpenWorkspace(workspace) }, onArchive = { onArchive(workspace) })
+            SwipeToArchiveRow(workspace, stackPositions[workspace.id], onClick = { actions.onOpen(workspace) }, onArchive = { actions.onArchive(workspace) })
             HorizontalDivider()
         }
     }

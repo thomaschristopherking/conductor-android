@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
@@ -36,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -44,10 +42,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import build.conductor.android.client.R
 import build.conductor.android.client.data.github.PullRequestStack
 import build.conductor.android.client.data.github.PullRequestState
 import build.conductor.android.client.data.github.PullRequestSummary
+import build.conductor.android.client.ui.components.StackPositionChip
 
 /** A line under the title bar: the pull request of the workspace, a menu of the tiers of its stack, and its diff numbers. */
 @Composable
@@ -114,7 +112,6 @@ private fun RowScope.FoundLine(stack: PullRequestStack, state: PullRequestUiStat
 /** "#15 Title ▾", with "2 of 5" when the pull request is part of a stack. */
 @Composable
 private fun TierButton(tier: PullRequestSummary, stack: PullRequestStack, onClick: () -> Unit) {
-    val position = stack.tiers.size - stack.tiers.indexOf(tier)
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 10.dp)
             .semantics { contentDescription = "Pull request ${tier.number}, ${tier.title}. Choose a pull request of the stack." },
@@ -124,20 +121,8 @@ private fun TierButton(tier: PullRequestSummary, stack: PullRequestStack, onClic
         StateDot(tier.state)
         Text("#${tier.number}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         Text(tier.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-        if (stack.tiers.size > 1) StackPosition(position, stack.tiers.size)
+        stack.positionOf(tier.number)?.let { StackPositionChip(it) }
         Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
-    }
-}
-
-@Composable
-private fun StackPosition(position: Int, size: Int) {
-    Row(
-        modifier = Modifier.background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(50)).padding(horizontal = 6.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        Icon(painterResource(R.drawable.ic_stack), contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-        Text("$position/$size", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
     }
 }
 

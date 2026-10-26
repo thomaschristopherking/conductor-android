@@ -69,7 +69,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
         }
         composable<HomeRoute> {
             HomeScreen(
-                viewModel = viewModel { HomeViewModel(container.repository, container.workspaceArchiver, container.homeSnapshots) },
+                viewModel = viewModel { HomeViewModel(container.repository, container.workspaceArchiver, container.homeSnapshots, container.stackPositions) },
                 actions = HomeActions(
                     onOpenWorkspace = { navController.navigate(WorkspaceRoute(it.id)) },
                     onCreateWorkspace = { navController.navigate(ChooseProjectRoute) },
@@ -99,7 +99,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
         composable<WorkspacesRoute> { entry ->
             val route = entry.toRoute<WorkspacesRoute>()
             WorkspacesScreen(
-                viewModel = viewModel { WorkspacesViewModel(container.repository, route.projectId, container.workspaceArchiver) },
+                viewModel = viewModel { WorkspacesViewModel(container.repository, route.projectId, container.workspaceArchiver, container.stackPositions) },
                 projectName = route.projectName,
                 onOpenWorkspace = { navController.navigate(WorkspaceRoute(it.id)) },
                 onCreateWorkspace = { navController.navigate(CreateWorkspaceRoute(route.projectId, route.projectName)) },

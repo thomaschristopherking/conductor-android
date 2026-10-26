@@ -54,6 +54,18 @@ data class PullRequestSummary(
 data class PullRequestStack(val tiers: List<PullRequestSummary>, val baseRef: String, val workspaceNumber: Int) {
     val workspaceTier: PullRequestSummary
         get() = tiers.first { it.number == workspaceNumber }
+
+    fun positionOf(number: Int): StackPosition? = stackPosition(tiers.map { it.number }, number)
+}
+
+/** The place of a pull request in a stack of two or more. [position] 1 is the tier that merges into the base branch. */
+data class StackPosition(val position: Int, val size: Int)
+
+/** Null when [number] is not in [topDownNumbers], or when the stack has one pull request only. */
+fun stackPosition(topDownNumbers: List<Int>, number: Int): StackPosition? {
+    val index = topDownNumbers.indexOf(number)
+    if (index < 0 || topDownNumbers.size < 2) return null
+    return StackPosition(topDownNumbers.size - index, topDownNumbers.size)
 }
 
 enum class ChangeKind {
