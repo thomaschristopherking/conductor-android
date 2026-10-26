@@ -11,3 +11,5 @@
 .kotlin/
 .context/
 __pycache__/
+*.jks
+*.keystore
