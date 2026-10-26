@@ -72,6 +72,27 @@ class GitHubRepositoryTest {
     }
 
     @Test
+    fun `stack positions read the pull request list once and leave out a workspace without a stack`() = runTest {
+        respond("/repos/example-org/example-repo/stacks?pull_request=13", Fixtures.read("github_stack.json"))
+        respond("/repos/example-org/example-repo/stacks?pull_request=14", Fixtures.read("github_stack.json"))
+        val bottom = WorkspaceKey(772, "renamed workspace")
+        val top = WorkspaceKey(7720, "menu")
+
+        val positions = repository.stackPositions(example, listOf(bottom, top, WorkspaceKey(9, "nothing-here"), WorkspaceKey(null, "unrelated")))
+
+        assertEquals(mapOf(bottom to StackPosition(1, 2), top to StackPosition(2, 2)), positions)
+        assertEquals(1, requests.count { it.url.encodedPath == "/repos/example-org/example-repo/pulls" })
+        assertTrue(requests.none { it.url.encodedPath.startsWith("/repos/example-org/example-repo/pulls/") })
+    }
+
+    @Test
+    fun `without a GitHub stack, stack positions come from the open pull requests that build on each other`() = runTest {
+        val positions = repository.stackPositions(example, listOf(WorkspaceKey(7720, "menu")))
+
+        assertEquals(mapOf(WorkspaceKey(7720, "menu") to StackPosition(2, 2)), positions)
+    }
+
+    @Test
     fun `changed files follow the pages until a short page`() = runTest {
         val fullPage = (1..100).joinToString(",", "[", "]") { """{"filename":"f$it.kt","status":"modified","additions":1,"deletions":0}""" }
         respond("/repos/example-org/example-repo/pulls/13/files?page=1", fullPage)

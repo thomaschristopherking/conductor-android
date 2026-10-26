@@ -14,6 +14,8 @@ import build.conductor.android.client.data.WorkspaceArchiver
 import build.conductor.android.client.data.api.createConductorApi
 import build.conductor.android.client.data.github.ApiGitHubRepository
 import build.conductor.android.client.data.github.GitHubRepository
+import build.conductor.android.client.data.github.GitHubStackPositions
+import build.conductor.android.client.data.github.StackPositions
 import build.conductor.android.client.data.github.createGitHubApi
 import build.conductor.android.client.data.settings.AesGcmCipher
 import build.conductor.android.client.data.settings.AppearanceStore
@@ -63,6 +65,8 @@ class AppContainer(context: Context) {
     val isGitHubConnected: Flow<Boolean> = gitHubToken.filterNot { it == SavedSecret.Loading }.map { it is SavedSecret.Present }
 
     val gitHubRepository: GitHubRepository = ApiGitHubRepository(createGitHubApi(token = { (gitHubToken.value as? SavedSecret.Present)?.value }))
+
+    val stackPositions: StackPositions = GitHubStackPositions(gitHubRepository, isGitHubConnected, CoroutineScope(applicationScope.coroutineContext + Dispatchers.Main.immediate))
 
     val appearanceStore = AppearanceStore(settingsDataStore)
 

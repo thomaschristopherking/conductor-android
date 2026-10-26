@@ -39,10 +39,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import build.conductor.android.client.data.WorkspaceState
 import build.conductor.android.client.data.api.Workspace
+import build.conductor.android.client.data.github.StackPosition
 import build.conductor.android.client.ui.components.EmptyView
 import build.conductor.android.client.ui.components.ErrorView
 import build.conductor.android.client.ui.components.LoadState
 import build.conductor.android.client.ui.components.LoadingView
+import build.conductor.android.client.ui.components.StackPositionChip
 import build.conductor.android.client.ui.components.WorkspaceStateBadge
 import build.conductor.android.client.ui.components.relativeTime
 
@@ -108,7 +110,7 @@ private fun WorkspaceList(workspaces: List<Workspace>, state: WorkspacesUiState,
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(workspaces, key = { it.id }) { workspace ->
             Column(modifier = Modifier.animateItem()) {
-                SwipeToArchiveRow(workspace, onClick = { actions.onOpen(workspace) }, onArchive = { actions.onArchive(workspace) })
+                SwipeToArchiveRow(workspace, state.stackPositions[workspace.id], onClick = { actions.onOpen(workspace) }, onArchive = { actions.onArchive(workspace) })
                 HorizontalDivider()
             }
         }
@@ -119,19 +121,27 @@ private fun WorkspaceList(workspaces: List<Workspace>, state: WorkspacesUiState,
 }
 
 @Composable
-internal fun WorkspaceRow(workspace: Workspace, onClick: () -> Unit) {
+internal fun WorkspaceRow(workspace: Workspace, stackPosition: StackPosition?, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(workspace.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-        supportingContent = {
-            Text(
-                listOfNotNull(repositoryName(workspace.repoUrl), relativeTime(workspace.lastActivityAt ?: workspace.createdAt)).joinToString(" · "),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
+        supportingContent = { WorkspaceDetails(workspace, stackPosition) },
         trailingContent = { WorkspaceStateBadge(WorkspaceState.from(workspace.state), workspace.lifecycleStep) },
         modifier = Modifier.clickable(onClick = onClick),
     )
+}
+
+/** "owner/repo · 2h ago", then the stack position of the pull request when it is in a stack. */
+@Composable
+private fun WorkspaceDetails(workspace: Workspace, stackPosition: StackPosition?) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            listOfNotNull(repositoryName(workspace.repoUrl), relativeTime(workspace.lastActivityAt ?: workspace.createdAt)).joinToString(" · "),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        stackPosition?.let { StackPositionChip(it) }
+    }
 }
 
 @Composable

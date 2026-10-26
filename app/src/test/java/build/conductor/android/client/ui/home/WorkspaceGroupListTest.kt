@@ -1,12 +1,16 @@
 package build.conductor.android.client.ui.home
 
 import android.app.Application
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import build.conductor.android.client.ComponentActivityRule
 import build.conductor.android.client.FakeConductorRepository.Companion.workspace
+import build.conductor.android.client.data.github.StackPosition
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -29,7 +33,7 @@ class WorkspaceGroupListTest {
             WorkspaceGroup("s1", "Interop", listOf(workspace("a", "Fix the importer"))),
             WorkspaceGroup("other", "Other workspaces", listOf(workspace("b", "Update the docs"))),
         )
-        composeRule.setContent { WorkspaceGroupList(groups, onOpenWorkspace = {}, onArchive = {}) }
+        composeRule.setContent { WorkspaceGroupList(groups, emptyMap(), WorkspaceRowActions(onOpen = {}, onArchive = {})) }
 
         val interopTop = composeRule.onNodeWithText("Interop").assertIsDisplayed().fetchSemanticsNode().boundsInRoot.top
         val rowTop = composeRule.onNodeWithText("Fix the importer").fetchSemanticsNode().boundsInRoot.top
@@ -41,11 +45,20 @@ class WorkspaceGroupListTest {
     fun `a tap on a workspace opens it`() {
         var opened: String? = null
         composeRule.setContent {
-            WorkspaceGroupList(listOf(WorkspaceGroup("other", null, listOf(workspace("a", "Fix the importer")))), onOpenWorkspace = { opened = it.id }, onArchive = {})
+            WorkspaceGroupList(listOf(WorkspaceGroup("other", null, listOf(workspace("a", "Fix the importer")))), emptyMap(), WorkspaceRowActions(onOpen = { opened = it.id }, onArchive = {}))
         }
 
         composeRule.onNodeWithText("Fix the importer").performClick()
 
         assertEquals("a", opened)
+    }
+
+    @Test
+    fun `a workspace in a stack shows its position, and a workspace outside a stack shows none`() {
+        val groups = listOf(WorkspaceGroup("other", null, listOf(workspace("a", "Fix the importer"), workspace("b", "Update the docs"))))
+        composeRule.setContent { WorkspaceGroupList(groups, mapOf("a" to StackPosition(3, 12)), WorkspaceRowActions(onOpen = {}, onArchive = {})) }
+
+        composeRule.onNodeWithContentDescription("Pull request 3 of 12 in a stack").assertIsDisplayed()
+        composeRule.onAllNodesWithContentDescription("in a stack", substring = true).assertCountEquals(1)
     }
 }

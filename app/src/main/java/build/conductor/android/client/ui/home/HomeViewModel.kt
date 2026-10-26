@@ -11,6 +11,8 @@ import build.conductor.android.client.data.applyTo
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.Section
 import build.conductor.android.client.data.api.Workspace
+import build.conductor.android.client.data.github.StackPosition
+import build.conductor.android.client.data.github.StackPositions
 import build.conductor.android.client.ui.components.LoadState
 import build.conductor.android.client.ui.components.toFailedState
 import build.conductor.android.client.ui.workspaces.SharedWorkspaceArchiving
@@ -30,6 +32,8 @@ data class HomeUiState(
     val isRefreshing: Boolean = false,
     val snackbarMessage: String? = null,
     val archive: ArchiveState = ArchiveState(),
+    /** The place of each workspace in its pull request stack, by workspace id. */
+    val stackPositions: Map<String, StackPosition> = emptyMap(),
 )
 
 /** The groups without the workspaces that the user archived. A group that loses every workspace goes away. */
@@ -43,6 +47,7 @@ class HomeViewModel(
     private val repository: ConductorRepository,
     archiver: WorkspaceArchiver,
     private val snapshots: HomeSnapshots = HomeSnapshots.None,
+    private val stackPositions: StackPositions = StackPositions.None,
 ) : ViewModel(), WorkspaceArchiving by SharedWorkspaceArchiving(archiver) {
     private val state = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = state.asStateFlow()
@@ -54,6 +59,7 @@ class HomeViewModel(
             fetchGroups()
         }
         viewModelScope.launch { archiver.archiveState.collect { archive -> state.update { it.copy(archive = archive) } } }
+        viewModelScope.launch { stackPositions.positions.collect { positions -> state.update { it.copy(stackPositions = positions) } } }
     }
 
     fun load() {
@@ -92,6 +98,7 @@ class HomeViewModel(
             val workspaces = repository.allWorkspaces(state.value.isShowingArchived)
             val loadedSections = sections.await()
             showGroups(workspaces, loadedSections)
+            stackPositions.load(workspaces)
             saveSnapshot(workspaces, loadedSections)
         } catch (exception: ApiException) {
             sections.cancel()

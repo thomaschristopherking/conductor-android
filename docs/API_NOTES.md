@@ -181,8 +181,8 @@ The app reads GitHub with the user's token:
 | Method and path | Use in the app |
 | --- | --- |
 | `GET /user` | Test the token in Settings. |
-| `GET /repos/{owner}/{repo}/pulls?state=all&sort=updated&direction=desc&per_page=100` | Find the pull request whose body has the workspace link. GitHub search does not index the link. |
-| `GET /repos/{owner}/{repo}/stacks?pull_request={n}` | The stack of the pull request, bottom first. `[]` when the pull request has no stack. |
+| `GET /repos/{owner}/{repo}/pulls?state=all&sort=updated&direction=desc&per_page=100` | Find the pull request whose body has the workspace link. GitHub search does not index the link. A workspace list reads it once for each repository. |
+| `GET /repos/{owner}/{repo}/stacks?pull_request={n}` | The stack of the pull request, bottom first. `[]` when the pull request has no stack. A workspace list reads it once for each workspace that has a pull request. |
 | `GET /repos/{owner}/{repo}/pulls/{n}` | Title, state, additions, deletions and changed files of each tier. The list endpoint leaves out the numbers. |
 | `GET /repos/{owner}/{repo}/pulls/{n}/files?per_page=100&page={p}` | The changed files and their diffs, up to 3000 files. |
 

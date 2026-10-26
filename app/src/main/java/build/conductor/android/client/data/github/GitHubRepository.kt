@@ -15,6 +15,9 @@ interface GitHubRepository {
     /** The stack that holds the pull request of the workspace, or null when the workspace has no pull request. */
     suspend fun workspaceStack(repository: RepositoryName, workspace: WorkspaceKey): PullRequestStack?
 
+    /** The place of each workspace whose pull request is in a stack of two or more. Other workspaces are not in the map. */
+    suspend fun stackPositions(repository: RepositoryName, workspaces: List<WorkspaceKey>): Map<WorkspaceKey, StackPosition>
+
     suspend fun changedFiles(repository: RepositoryName, number: Int): List<FileChange>
 }
 
@@ -30,9 +33,21 @@ class ApiGitHubRepository(private val api: GitHubApi) : GitHubRepository {
 
     private suspend fun stackOf(repository: RepositoryName, pullRequest: GitHubPullRequest, candidates: List<GitHubPullRequest>): PullRequestStack {
         val gitHubStack = gitHubStack(repository, pullRequest.number)
-        val numbers = gitHubStack?.pullRequests?.map { it.number }?.reversed() ?: chainedStackNumbers(pullRequest, candidates)
-        val tiers = summaries(repository, numbers)
+        val tiers = summaries(repository, gitHubStack?.topDownNumbers() ?: chainedStackNumbers(pullRequest, candidates))
         return PullRequestStack(tiers, gitHubStack?.base?.ref ?: tiers.last().baseRef, pullRequest.number)
+    }
+
+    override suspend fun stackPositions(repository: RepositoryName, workspaces: List<WorkspaceKey>): Map<WorkspaceKey, StackPosition> = mapGitHubErrors {
+        val candidates = api.pullRequests(repository.owner, repository.name)
+        val pullRequests = workspaces.mapNotNull { workspace -> findWorkspacePullRequest(candidates, workspace)?.let { workspace to it } }
+        coroutineScope {
+            pullRequests.map { (workspace, pullRequest) -> async { workspace to positionOf(repository, pullRequest, candidates) } }.awaitAll()
+        }.mapNotNull { (workspace, position) -> position?.let { workspace to it } }.toMap()
+    }
+
+    private suspend fun positionOf(repository: RepositoryName, pullRequest: GitHubPullRequest, candidates: List<GitHubPullRequest>): StackPosition? {
+        val gitHubStack = detailPermits.withPermit { gitHubStack(repository, pullRequest.number) }
+        return stackPosition(gitHubStack?.topDownNumbers() ?: chainedStackNumbers(pullRequest, candidates), pullRequest.number)
     }
 
     /** A repository without stacks answers 404. */
@@ -41,6 +56,8 @@ class ApiGitHubRepository(private val api: GitHubApi) : GitHubRepository {
     } catch (exception: ApiException.Client) {
         if (exception.statusCode == HTTP_NOT_FOUND) null else throw exception
     }
+
+    private fun GitHubStack.topDownNumbers(): List<Int> = pullRequests.map { it.number }.reversed()
 
     /** Only the endpoint for one pull request sends its additions and deletions. */
     private suspend fun summaries(repository: RepositoryName, numbers: List<Int>): List<PullRequestSummary> = coroutineScope {

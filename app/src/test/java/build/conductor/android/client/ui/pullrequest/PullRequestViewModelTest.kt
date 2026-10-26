@@ -14,6 +14,7 @@ import build.conductor.android.client.data.github.PullRequestStack
 import build.conductor.android.client.data.github.PullRequestState
 import build.conductor.android.client.data.github.PullRequestSummary
 import build.conductor.android.client.data.github.RepositoryName
+import build.conductor.android.client.data.github.StackPosition
 import build.conductor.android.client.data.github.WorkspaceKey
 import build.conductor.android.client.ui.components.LoadState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -127,6 +128,8 @@ private class FakeGitHubRepository : GitHubRepository {
         failure?.let { throw it }
         return stack
     }
+
+    override suspend fun stackPositions(repository: RepositoryName, workspaces: List<WorkspaceKey>): Map<WorkspaceKey, StackPosition> = emptyMap()
 
     override suspend fun changedFiles(repository: RepositoryName, number: Int): List<FileChange> {
         fileRequests += number

@@ -8,6 +8,8 @@ import build.conductor.android.client.data.WorkspaceArchiver
 import build.conductor.android.client.data.applyTo
 import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.Workspace
+import build.conductor.android.client.data.github.StackPosition
+import build.conductor.android.client.data.github.StackPositions
 import build.conductor.android.client.ui.components.LoadState
 import build.conductor.android.client.ui.components.toFailedState
 import kotlinx.coroutines.Job
@@ -26,6 +28,8 @@ data class WorkspacesUiState(
     val loadMoreError: String? = null,
     val snackbarMessage: String? = null,
     val archive: ArchiveState = ArchiveState(),
+    /** The place of each workspace in its pull request stack, by workspace id. */
+    val stackPositions: Map<String, StackPosition> = emptyMap(),
 )
 
 /** The loaded workspaces without the ones that the user archived. */
@@ -36,6 +40,7 @@ class WorkspacesViewModel(
     private val repository: ConductorRepository,
     private val projectId: String,
     private val archiver: WorkspaceArchiver,
+    private val stackPositions: StackPositions = StackPositions.None,
 ) : ViewModel(), WorkspaceArchiving by SharedWorkspaceArchiving(archiver) {
     private val state = MutableStateFlow(WorkspacesUiState())
     val uiState: StateFlow<WorkspacesUiState> = state.asStateFlow()
@@ -44,6 +49,7 @@ class WorkspacesViewModel(
     init {
         load()
         viewModelScope.launch { archiver.archiveState.collect { archive -> state.update { it.copy(archive = archive) } } }
+        viewModelScope.launch { stackPositions.positions.collect { positions -> state.update { it.copy(stackPositions = positions) } } }
     }
 
     fun load() {
@@ -78,6 +84,7 @@ class WorkspacesViewModel(
             val page = repository.workspaces(projectId, state.value.isShowingArchived, offset)
             val merged = (previous + page.data).distinctBy { it.id }.sortedByDescending { it.lastActivityAt ?: it.createdAt }
             state.update { it.copy(workspaces = LoadState.Loaded(merged), hasMore = page.hasMore, isRefreshing = false, isLoadingMore = false) }
+            stackPositions.load(merged)
         } catch (exception: ApiException) {
             state.update { it.withFailure(exception, isFirstPage = offset == 0) }
         }
