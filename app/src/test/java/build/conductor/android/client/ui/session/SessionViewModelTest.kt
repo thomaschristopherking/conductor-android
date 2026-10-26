@@ -271,6 +271,25 @@ class SessionViewModelTest {
     }
 
     @Test
+    fun `a prompt from the pull request bar is sent without a change to the draft, and a failed one goes into the empty draft`() = runTest {
+        val viewModel = openSession()
+        viewModel.onDraftChange("Half typed")
+
+        viewModel.sendPrompt("Fix the failed checks")
+        runCurrent()
+
+        assertEquals(listOf("Fix the failed checks" to CLIENT_ID), repository.sentMessages)
+        assertEquals("Half typed", viewModel.uiState.value.draft)
+
+        repository.sendFailure = ApiException.Server(503, "Conductor is not available")
+        viewModel.onDraftChange("")
+        viewModel.sendPrompt("Fix the failed checks again")
+        runCurrent()
+        assertEquals("Fix the failed checks again", viewModel.uiState.value.draft)
+        viewModel.onHidden()
+    }
+
+    @Test
     fun `cancel asks the API to stop and polls until the agent is idle`() = runTest {
         repository.sessionStatusValue = "working"
         val viewModel = openSession()

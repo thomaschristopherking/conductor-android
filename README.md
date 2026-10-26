@@ -9,7 +9,8 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
 ## What the app does
 
 - **Settings.** Paste a Conductor API key. The app tests the key with a read-only call (`GET /me`) before it saves the key. The key is encrypted with AES-GCM. The AES key stays in the Android Keystore. You can clear the key.
-  - An optional GitHub token shows the pull requests and changes of a workspace. The app tests it with `GET /user` and encrypts it in the same way as the API key.
+  - An optional GitHub token shows the pull requests, changes and checks of a workspace. The app tests it with `GET /user` and encrypts it in the same way as the API key.
+  - A fine-grained token needs read access to "Pull requests", "Checks", "Commit statuses" and "Actions". To merge from the app, it also needs read and write access to "Contents". A classic token needs the `repo` scope.
 - **App update.** When the app opens, it looks for a newer build on the Releases page. If one exists, a dot shows on the Settings icon of the home screen, and Settings shows "Update to build N".
   - A tap downloads the APK and gives it to Android. Android shows its own dialog to confirm the update. The app restarts on the new build and keeps its data.
   - The first time, Android asks you to allow "Install unknown apps" for Conductor.
@@ -39,6 +40,11 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
   - The app reads the stack from GitHub's stack endpoint, which `gh stack` uses. Without a stack on GitHub, open pull requests whose base is the branch of another one make the stack.
   - Tap the line numbers to open the changes. The changes show each file with its added and removed lines. "Folders" groups the files by folder, with the totals of each folder. "Files" is one list in path order. "Type" groups the files into added, modified, renamed and removed. Tap a folder to close or open it. Tap a file to see its diff.
   - Switching to a different pull request of the stack does not change the branch of the workspace.
+  - For an open or draft pull request, a second line shows its checks, for example "2 of 7 checks failed". The checks are the check runs and the commit statuses of the newest commit. Tap the line to list the checks. Tap a check to open it in the browser.
+  - While a check runs, or while GitHub computes if the pull request can merge, the bar reads GitHub again every 30 seconds.
+  - **Fix errors** shows when a check failed and the workspace has a session. It sends a prompt to the open session. The prompt names each failed check, with its link, its summary and the end of its log. The app reads the logs of up to five failed GitHub Actions jobs. Each excerpt has up to 80 lines and ends at the last `##[error]` line.
+  - **Merge** shows for the bottom pull request of the stack, the one that merges into the base branch, when it is open and not a draft. It opens a dialog. Choose a merge method from the methods that the repository allows. The dialog shows a warning when a check failed or still runs, or when GitHub blocks the merge, but GitHub decides. The app sends the commit that it showed, so GitHub refuses the merge if the branch has a newer commit. A pull request with conflicts shows "Conflicts" in place of the button.
+  - The desktop Fix errors button also sends the "Fix errors preferences" of the repository. The public API does not return them, so the phone prompt does not have them.
 - **Session.** The transcript as a chat, with markdown and code blocks. A composer at the bottom moves up with the keyboard. "Stop" cancels the agent's turn.
   - Touch and hold a message to select its text. Each message has a copy button below it.
   - Code blocks wrap long lines. Each code block has a copy button that copies only the code.

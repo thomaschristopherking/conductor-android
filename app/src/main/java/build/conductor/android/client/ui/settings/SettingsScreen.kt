@@ -164,8 +164,8 @@ private fun GitHubSection(viewModel: GitHubSettingsViewModel) {
     var isConfirmingClear by remember { mutableStateOf(false) }
     Text("GitHub (optional)", style = MaterialTheme.typography.titleMedium)
     Text(
-        "With a GitHub token, a workspace shows its pull request, the other pull requests of its stack, and the files that each one changes. " +
-            "Give the token read access to the pull requests of your repositories.",
+        "With a GitHub token, a workspace shows its pull request, the other pull requests of its stack, the files that each one changes, and its checks. " +
+            "Give the token read access to pull requests, checks, commit statuses and actions. To merge from the app, give it write access to contents.",
         style = MaterialTheme.typography.bodyMedium,
     )
     state.savedTokenMask?.let { Text("Saved token: $it", style = MaterialTheme.typography.bodyMedium) }

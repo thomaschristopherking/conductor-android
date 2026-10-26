@@ -183,8 +183,13 @@ The app reads GitHub with the user's token:
 | `GET /user` | Test the token in Settings. |
 | `GET /repos/{owner}/{repo}/pulls?state=all&sort=updated&direction=desc&per_page=100` | Find the pull request whose body has the workspace link. GitHub search does not index the link. A workspace list reads it once for each repository. |
 | `GET /repos/{owner}/{repo}/stacks?pull_request={n}` | The stack of the pull request, bottom first. `[]` when the pull request has no stack. A workspace list reads it once for each workspace that has a pull request. |
-| `GET /repos/{owner}/{repo}/pulls/{n}` | Title, state, additions, deletions and changed files of each tier. The list endpoint leaves out the numbers. |
+| `GET /repos/{owner}/{repo}/pulls/{n}` | Title, state, head commit, additions, deletions, changed files, `mergeable` and `mergeable_state` of each tier. The list endpoint leaves out the numbers and the merge fields. `mergeable_state` is `unknown` for a short time after a push. |
 | `GET /repos/{owner}/{repo}/pulls/{n}/files?per_page=100&page={p}` | The changed files and their diffs, up to 3000 files. |
+| `GET /repos/{owner}/{repo}/commits/{sha}/check-runs?per_page=100` | The checks of the head commit. GitHub sends the newest run of each check name. |
+| `GET /repos/{owner}/{repo}/commits/{sha}/status?per_page=100` | The commit statuses of the head commit. The combined `state` is `pending` when the commit has no statuses, so the app reads `statuses` only. |
+| `GET /repos/{owner}/{repo}/actions/jobs/{id}/logs` | The log of a failed GitHub Actions job, for Fix errors. The check run `id` is the job id. GitHub answers 302 or 303 with a signed link to a different host, and OkHttp drops the token for it. The log is plain text: each line starts with a timestamp, and steps use `##[group]`, `##[endgroup]` and `##[error]` markers. |
+| `GET /repos/{owner}/{repo}` | `allow_squash_merge`, `allow_merge_commit` and `allow_rebase_merge`, for the merge dialog. |
+| `PUT /repos/{owner}/{repo}/pulls/{n}/merge` | Merge with `{"merge_method": ..., "sha": ...}`. GitHub answers 405 when it cannot merge and 409 when the branch has a newer commit than `sha`. The app shows the GitHub message. |
 | `GET /repos/thomaschristopherking/conductor-android/releases?per_page=20` | The newest build for the update button. The app skips drafts, and releases that have no `conductor-android.apk` yet. With a token that can push to the repository, the list also has drafts. |
 
 ## Fixtures

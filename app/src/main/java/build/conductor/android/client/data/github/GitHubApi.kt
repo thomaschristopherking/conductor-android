@@ -1,11 +1,15 @@
 package build.conductor.android.client.data.github
 
+import okhttp3.ResponseBody
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 
-/** The parts of the GitHub REST API that show the pull requests of a workspace. */
+/** The parts of the GitHub REST API that show and merge the pull requests of a workspace. */
 interface GitHubApi {
     @GET("user")
     suspend fun user(@Header(AUTHORIZATION_HEADER) authorization: String? = null): GitHubUser
@@ -40,6 +44,25 @@ interface GitHubApi {
     /** The most recently created releases first. */
     @GET("repos/{owner}/{repo}/releases")
     suspend fun releases(@Path("owner") owner: String, @Path("repo") repo: String, @Query("per_page") perPage: Int = RELEASE_PAGE_SIZE): List<GitHubRelease>
+
+    /** The newest check run of each name; a check that runs again replaces the old one. */
+    @GET("repos/{owner}/{repo}/commits/{sha}/check-runs")
+    suspend fun checkRuns(@Path("owner") owner: String, @Path("repo") repo: String, @Path("sha") sha: String, @Query("per_page") perPage: Int = PAGE_SIZE): GitHubCheckRuns
+
+    /** Commit statuses come from services that do not use check runs. */
+    @GET("repos/{owner}/{repo}/commits/{sha}/status")
+    suspend fun combinedStatus(@Path("owner") owner: String, @Path("repo") repo: String, @Path("sha") sha: String, @Query("per_page") perPage: Int = PAGE_SIZE): GitHubCombinedStatus
+
+    /** The plain text log of a GitHub Actions job. GitHub redirects to a signed download, and OkHttp drops the token for the other host. */
+    @Streaming
+    @GET("repos/{owner}/{repo}/actions/jobs/{jobId}/logs")
+    suspend fun jobLog(@Path("owner") owner: String, @Path("repo") repo: String, @Path("jobId") jobId: Long): ResponseBody
+
+    @GET("repos/{owner}/{repo}")
+    suspend fun mergeSettings(@Path("owner") owner: String, @Path("repo") repo: String): GitHubMergeSettings
+
+    @PUT("repos/{owner}/{repo}/pulls/{number}/merge")
+    suspend fun merge(@Path("owner") owner: String, @Path("repo") repo: String, @Path("number") number: Int, @Body request: GitHubMergeRequest): GitHubMergeResult
 
     companion object {
         const val RELEASE_PAGE_SIZE = 20

@@ -152,6 +152,10 @@ class SessionViewModel(
         submitPrompt(text, onFailure = { state.update { it.copy(draft = it.draft.ifEmpty { text }) } })
     }
 
+    /** Sends [text] as a prompt and leaves the draft alone. If the prompt fails, it goes into an empty draft so that it is not lost. */
+    fun sendPrompt(text: String) =
+        submitPrompt(text, onFailure = { state.update { it.copy(draft = it.draft.ifEmpty { text }) } })
+
     fun toggleOption(questionIndex: Int, label: String) = updateAnswer(questionIndex) { answer, question -> answer.withToggled(label, question) }
 
     fun onOtherTextChange(questionIndex: Int, text: String) = updateAnswer(questionIndex) { answer, question -> answer.withOtherText(text, question) }

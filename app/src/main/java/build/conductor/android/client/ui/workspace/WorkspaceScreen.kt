@@ -51,6 +51,7 @@ import build.conductor.android.client.ui.components.copyDeepLink
 import build.conductor.android.client.ui.components.shareDeepLink
 import build.conductor.android.client.ui.components.workspaceStateLabel
 import build.conductor.android.client.ui.pullrequest.PullRequestBar
+import build.conductor.android.client.ui.pullrequest.PullRequestBarActions
 import build.conductor.android.client.ui.pullrequest.PullRequestViewModel
 import build.conductor.android.client.ui.session.SessionPane
 import build.conductor.android.client.ui.session.SessionViewModel
@@ -85,7 +86,10 @@ fun WorkspaceScreen(viewModel: WorkspaceDetailViewModel, actions: WorkspaceScree
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         WorkspaceBody(state, viewModel, padding) { sessions ->
-            detail?.workspace?.let { PullRequestBar(actions.pullRequestViewModel(it), actions.onConnectGitHub) }
+            detail?.workspace?.let { workspace ->
+                val barActions = PullRequestBarActions(actions.onConnectGitHub, selectedSession?.let { it::sendPrompt }, snackbarHostState)
+                PullRequestBar(actions.pullRequestViewModel(workspace), barActions)
+            }
             SessionTabs(sessions, state.selectedSessionId, viewModel, TabCallbacks(actions.sessionViewModel, snackbarHostState) { openDialog = WorkspaceDialog.NEW_SESSION })
         }
     }

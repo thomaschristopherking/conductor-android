@@ -7,12 +7,12 @@ import kotlinx.serialization.Serializable
 data class GitHubUser(val login: String, val name: String? = null)
 
 @Serializable
-data class GitHubBranch(val ref: String, val repo: GitHubRepositoryRef? = null)
+data class GitHubBranch(val ref: String, val sha: String = "", val repo: GitHubRepositoryRef? = null)
 
 @Serializable
 data class GitHubRepositoryRef(@SerialName("full_name") val fullName: String)
 
-/** The list endpoint leaves out [additions], [deletions] and [changedFiles]. */
+/** The list endpoint leaves out [additions], [deletions], [changedFiles], [mergeable] and [mergeableState]. */
 @Serializable
 data class GitHubPullRequest(
     val number: Int,
@@ -27,6 +27,9 @@ data class GitHubPullRequest(
     val additions: Int? = null,
     val deletions: Int? = null,
     @SerialName("changed_files") val changedFiles: Int? = null,
+    /** Null while GitHub computes it. */
+    val mergeable: Boolean? = null,
+    @SerialName("mergeable_state") val mergeableState: String? = null,
 )
 
 @Serializable
@@ -64,6 +67,53 @@ data class GitHubReleaseAsset(
     val size: Long,
     @SerialName("browser_download_url") val browserDownloadUrl: String,
 )
+
+@Serializable
+data class GitHubCheckRuns(@SerialName("check_runs") val checkRuns: List<GitHubCheckRun>)
+
+/** [conclusion] is null until [status] is `completed`. */
+@Serializable
+data class GitHubCheckRun(
+    val id: Long,
+    val name: String,
+    val status: String,
+    val conclusion: String? = null,
+    @SerialName("html_url") val htmlUrl: String? = null,
+    val output: GitHubCheckOutput? = null,
+    val app: GitHubApp? = null,
+)
+
+@Serializable
+data class GitHubCheckOutput(val title: String? = null, val summary: String? = null)
+
+@Serializable
+data class GitHubApp(val slug: String? = null)
+
+/** The `state` of the combined status is `pending` when the commit has no statuses, so the app reads [statuses] only. */
+@Serializable
+data class GitHubCombinedStatus(val statuses: List<GitHubCommitStatus>)
+
+@Serializable
+data class GitHubCommitStatus(
+    val context: String,
+    val state: String,
+    val description: String? = null,
+    @SerialName("target_url") val targetUrl: String? = null,
+)
+
+@Serializable
+data class GitHubMergeSettings(
+    @SerialName("allow_squash_merge") val allowSquashMerge: Boolean = true,
+    @SerialName("allow_merge_commit") val allowMergeCommit: Boolean = true,
+    @SerialName("allow_rebase_merge") val allowRebaseMerge: Boolean = true,
+)
+
+/** [sha] makes GitHub refuse the merge with 409 when the branch has a newer commit than the one that the user saw. */
+@Serializable
+data class GitHubMergeRequest(@SerialName("merge_method") val mergeMethod: String, val sha: String)
+
+@Serializable
+data class GitHubMergeResult(val merged: Boolean, val message: String? = null)
 
 @Serializable
 data class GitHubError(val message: String? = null)

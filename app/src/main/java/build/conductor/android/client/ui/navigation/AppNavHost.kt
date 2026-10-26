@@ -143,7 +143,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
                         viewModel(key = row.session.id) { SessionViewModel(container.repository, row.session.id, row.title, container.subscriptionStore, container.transcripts) }
                     },
                     pullRequestViewModel = { workspace ->
-                        viewModel(key = "pull-request/${workspace.id}") { PullRequestViewModel(container.gitHubRepository, container.isGitHubConnected, workspace) }
+                        viewModel(key = "pull-request/${workspace.id}") { PullRequestViewModel(container.gitHubAccess, workspace) }
                     },
                     onConnectGitHub = { navController.navigate(SettingsRoute()) },
                     onSubscribeRequested = rememberNotificationPermissionRequest(),

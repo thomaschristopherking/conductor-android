@@ -39,6 +39,34 @@ data class DiffCount(val additions: Int, val deletions: Int) {
     }
 }
 
+/** What GitHub says about a merge of an open pull request, from its `mergeable_state`. */
+enum class Mergeability {
+    READY,
+
+    /** A check that is not required failed or still runs. */
+    UNSTABLE,
+
+    /** A required review or check is missing. An admin can still merge. */
+    BLOCKED,
+    BEHIND,
+    CONFLICTING,
+
+    /** GitHub computes it after each push, or the pull request is a draft or not open. */
+    UNKNOWN,
+    ;
+
+    companion object {
+        fun from(mergeableState: String?): Mergeability = when (mergeableState) {
+            "clean", "has_hooks" -> READY
+            "unstable" -> UNSTABLE
+            "blocked" -> BLOCKED
+            "behind" -> BEHIND
+            "dirty" -> CONFLICTING
+            else -> UNKNOWN
+        }
+    }
+}
+
 data class PullRequestSummary(
     val number: Int,
     val title: String,
@@ -48,6 +76,9 @@ data class PullRequestSummary(
     val url: String,
     val diff: DiffCount,
     val changedFiles: Int,
+    /** The commit that the checks ran on, and the commit that a merge must merge. */
+    val headSha: String,
+    val mergeability: Mergeability,
 )
 
 /** The pull requests of a stack. [tiers] start at the top; the last tier merges into [baseRef]. A lone pull request is a stack of one. */
@@ -56,6 +87,9 @@ data class PullRequestStack(val tiers: List<PullRequestSummary>, val baseRef: St
         get() = tiers.first { it.number == workspaceNumber }
 
     fun positionOf(number: Int): StackPosition? = stackPosition(tiers.map { it.number }, number)
+
+    /** Only the bottom tier merges into the base branch; GitHub retargets the tier above it after the merge. */
+    fun canMerge(tier: PullRequestSummary): Boolean = tier.number == tiers.last().number && tier.state == PullRequestState.OPEN
 }
 
 /** The place of a pull request in a stack of two or more. [position] 1 is the tier that merges into the base branch. */
@@ -140,6 +174,8 @@ fun GitHubPullRequest.toSummary() = PullRequestSummary(
     url = htmlUrl,
     diff = DiffCount(additions ?: 0, deletions ?: 0),
     changedFiles = changedFiles ?: 0,
+    headSha = head.sha,
+    mergeability = Mergeability.from(mergeableState),
 )
 
 fun GitHubChangedFile.toFileChange() = FileChange(filename, ChangeKind.from(status), DiffCount(additions, deletions), patch, previousFilename)

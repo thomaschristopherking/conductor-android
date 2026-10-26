@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,13 +25,16 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,29 +49,55 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import build.conductor.android.client.data.github.PullRequestStack
 import build.conductor.android.client.data.github.PullRequestState
 import build.conductor.android.client.data.github.PullRequestSummary
+import build.conductor.android.client.data.github.PullRequestState.DRAFT
+import build.conductor.android.client.data.github.PullRequestState.OPEN
 import build.conductor.android.client.ui.components.StackPositionChip
+import kotlinx.coroutines.launch
 
-/** A line under the title bar: the pull request of the workspace, a menu of the tiers of its stack, and its diff numbers. */
+/** What the bar asks of the workspace screen. [onSendPrompt] sends to the open session, and is null when the workspace has no session. */
+class PullRequestBarActions(
+    val onConnectGitHub: () -> Unit,
+    val onSendPrompt: ((String) -> Unit)?,
+    val snackbarHostState: SnackbarHostState,
+)
+
+/** A line under the title bar: the pull request of the workspace, a menu of the tiers of its stack, its diff numbers, its checks and Merge. */
 @Composable
-fun PullRequestBar(viewModel: PullRequestViewModel, onConnectGitHub: () -> Unit) {
+fun PullRequestBar(viewModel: PullRequestViewModel, actions: PullRequestBarActions) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LifecycleStartEffect(viewModel) {
-        viewModel.refresh()
-        onStopOrDispose {}
+        viewModel.onVisible()
+        onStopOrDispose { viewModel.onHidden() }
     }
+    PullRequestEvents(viewModel, actions)
     when (val lookup = state.lookup) {
         StackLookup.NotOnGitHub -> return
-        StackLookup.NotConnected -> BarSurface { TextButton(onClick = onConnectGitHub) { Text("Connect GitHub to see the pull request and its changes") } }
+        StackLookup.NotConnected -> BarSurface { TextButton(onClick = actions.onConnectGitHub) { Text("Connect GitHub to see the pull request and its changes") } }
         StackLookup.Loading -> BarSurface { LoadingLine() }
         StackLookup.NotFound -> BarSurface { MessageLine("No pull request for this workspace", onRefresh = viewModel::refresh) }
-        is StackLookup.Failed -> BarSurface { FailedLine(lookup, onRetry = viewModel::refresh, onOpenSettings = onConnectGitHub) }
-        is StackLookup.Found -> BarSurface { FoundLine(lookup.stack, state, viewModel) }
+        is StackLookup.Failed -> BarSurface { FailedLine(lookup, onRetry = viewModel::refresh, onOpenSettings = actions.onConnectGitHub) }
+        is StackLookup.Found -> FoundBar(lookup.stack, state, viewModel, canSendPrompt = actions.onSendPrompt != null)
     }
     if (state.isShowingChanges) ChangesSheet(state, viewModel)
+    state.merge?.let { MergeDialog(it, state.selectedChecks, viewModel) }
 }
 
 @Composable
-private fun BarSurface(content: @Composable RowScope.() -> Unit) {
+private fun PullRequestEvents(viewModel: PullRequestViewModel, actions: PullRequestBarActions) {
+    val currentActions by rememberUpdatedState(actions)
+    LaunchedEffect(viewModel) {
+        viewModel.eventFlow.collect { event ->
+            when (event) {
+                is PullRequestEvent.SendPrompt -> currentActions.onSendPrompt?.invoke(event.text)
+                    ?: launch { currentActions.snackbarHostState.showSnackbar("Open a session to send the prompt.") }
+                is PullRequestEvent.ShowMessage -> launch { currentActions.snackbarHostState.showSnackbar(event.text) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BarSurface(below: @Composable ColumnScope.() -> Unit = {}, content: @Composable RowScope.() -> Unit) {
     Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
         Column {
             Row(
@@ -75,8 +105,17 @@ private fun BarSurface(content: @Composable RowScope.() -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 content = content,
             )
+            below()
             HorizontalDivider()
         }
+    }
+}
+
+@Composable
+private fun FoundBar(stack: PullRequestStack, state: PullRequestUiState, viewModel: PullRequestViewModel, canSendPrompt: Boolean) {
+    val tier = state.selectedTier ?: stack.workspaceTier
+    BarSurface(below = { if (tier.state == OPEN || tier.state == DRAFT) ChecksLine(stack, tier, state, viewModel, canSendPrompt) }) {
+        FoundLine(stack, state, viewModel)
     }
 }
 

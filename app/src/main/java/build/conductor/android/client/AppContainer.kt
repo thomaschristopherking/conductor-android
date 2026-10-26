@@ -13,10 +13,12 @@ import build.conductor.android.client.data.RecentCache
 import build.conductor.android.client.data.WorkspaceArchiver
 import build.conductor.android.client.data.api.createConductorApi
 import build.conductor.android.client.data.github.ApiGitHubRepository
+import build.conductor.android.client.data.github.ApiPullRequestActions
 import build.conductor.android.client.data.github.GitHubRepository
 import build.conductor.android.client.data.github.GitHubStackPositions
 import build.conductor.android.client.data.github.StackPositions
 import build.conductor.android.client.data.github.createGitHubApi
+import build.conductor.android.client.ui.pullrequest.GitHubAccess
 import build.conductor.android.client.data.settings.AesGcmCipher
 import build.conductor.android.client.data.settings.AppearanceStore
 import build.conductor.android.client.data.settings.ColorSchemeChoice
@@ -67,7 +69,9 @@ class AppContainer(context: Context) {
     /** Waits for DataStore, so a screen does not ask for a token that is saved. */
     val isGitHubConnected: Flow<Boolean> = gitHubToken.filterNot { it == SavedSecret.Loading }.map { it is SavedSecret.Present }
 
-    val gitHubRepository: GitHubRepository = ApiGitHubRepository(createGitHubApi(token = { (gitHubToken.value as? SavedSecret.Present)?.value }))
+    private val gitHubApi = createGitHubApi(token = { (gitHubToken.value as? SavedSecret.Present)?.value })
+    val gitHubRepository: GitHubRepository = ApiGitHubRepository(gitHubApi)
+    val gitHubAccess = GitHubAccess(gitHubRepository, ApiPullRequestActions(gitHubApi), isGitHubConnected)
 
     val stackPositions: StackPositions = GitHubStackPositions(gitHubRepository, isGitHubConnected, CoroutineScope(applicationScope.coroutineContext + Dispatchers.Main.immediate))
 
