@@ -29,6 +29,9 @@ import build.conductor.android.client.data.transcript.TranscriptSnapshot
 import build.conductor.android.client.notify.StatusNotifier
 import build.conductor.android.client.notify.WorkspaceWatcher
 import build.conductor.android.client.ui.workspace.WorkspaceDetail
+import build.conductor.android.client.update.AppUpdater
+import build.conductor.android.client.update.HttpApkDownloader
+import build.conductor.android.client.update.PackageInstallerApkInstaller
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -67,6 +70,13 @@ class AppContainer(context: Context) {
     val gitHubRepository: GitHubRepository = ApiGitHubRepository(createGitHubApi(token = { (gitHubToken.value as? SavedSecret.Present)?.value }))
 
     val stackPositions: StackPositions = GitHubStackPositions(gitHubRepository, isGitHubConnected, CoroutineScope(applicationScope.coroutineContext + Dispatchers.Main.immediate))
+
+    val appUpdater = AppUpdater(
+        gitHubRepository,
+        HttpApkDownloader(File(context.cacheDir, UPDATE_DIRECTORY)),
+        PackageInstallerApkInstaller(context.applicationContext),
+        CoroutineScope(applicationScope.coroutineContext + Dispatchers.Main.immediate),
+    )
 
     val appearanceStore = AppearanceStore(settingsDataStore)
 
@@ -119,6 +129,7 @@ class AppContainer(context: Context) {
         const val SUBSCRIPTIONS_FILE = "workspace_subscriptions"
         const val KEYSTORE_ALIAS = "conductor_api_key"
         const val HOME_SNAPSHOT_FILE = "home_snapshot.json"
+        const val UPDATE_DIRECTORY = "updates"
         const val MAX_SAVED_TRANSCRIPTS = 12
         const val MAX_SAVED_WORKSPACES = 20
     }

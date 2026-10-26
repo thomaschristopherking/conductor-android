@@ -92,4 +92,6 @@ private class PositionsGitHubRepository : GitHubRepository {
     }
 
     override suspend fun changedFiles(repository: RepositoryName, number: Int): List<FileChange> = emptyList()
+
+    override suspend fun newestAppRelease(repository: RepositoryName): AppRelease? = null
 }

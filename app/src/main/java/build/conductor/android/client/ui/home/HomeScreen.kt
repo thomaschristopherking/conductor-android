@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -50,7 +52,7 @@ class HomeActions(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: HomeViewModel, actions: HomeActions) {
+fun HomeScreen(viewModel: HomeViewModel, actions: HomeActions, hasUpdate: Boolean) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(state.snackbarMessage) {
@@ -59,17 +61,27 @@ fun HomeScreen(viewModel: HomeViewModel, actions: HomeActions) {
     ArchiveSnackbars(state.archive.undoable, viewModel, snackbarHostState)
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = { TopAppBar(title = { Text("Workspaces") }, actions = { HomeTopActions(actions) }) },
+        topBar = { TopAppBar(title = { Text("Workspaces") }, actions = { HomeTopActions(actions, hasUpdate) }) },
     ) { padding ->
         HomeBody(state, viewModel, actions.onOpenWorkspace, Modifier.padding(padding))
     }
 }
 
 @Composable
-private fun HomeTopActions(actions: HomeActions) {
+private fun HomeTopActions(actions: HomeActions, hasUpdate: Boolean) {
     IconButton(onClick = actions.onCreateWorkspace) { Icon(Icons.Filled.Add, contentDescription = "New workspace") }
     IconButton(onClick = actions.onOpenProjects) { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Projects") }
-    IconButton(onClick = actions.onOpenSettings) { Icon(Icons.Filled.Settings, contentDescription = "Settings") }
+    IconButton(onClick = actions.onOpenSettings) { SettingsIcon(hasUpdate) }
+}
+
+/** A dot on the icon tells the user that a new build is ready in Settings. */
+@Composable
+private fun SettingsIcon(hasUpdate: Boolean) {
+    if (!hasUpdate) {
+        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+        return
+    }
+    BadgedBox(badge = { Badge() }) { Icon(Icons.Filled.Settings, contentDescription = "Settings, an app update is ready") }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

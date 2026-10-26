@@ -50,5 +50,20 @@ data class GitHubStack(
 @Serializable
 data class GitHubStackEntry(val number: Int)
 
+/** The list endpoint sends drafts too when the token can push to the repository. */
+@Serializable
+data class GitHubRelease(
+    @SerialName("tag_name") val tagName: String,
+    val draft: Boolean = false,
+    val assets: List<GitHubReleaseAsset> = emptyList(),
+)
+
+@Serializable
+data class GitHubReleaseAsset(
+    val name: String,
+    val size: Long,
+    @SerialName("browser_download_url") val browserDownloadUrl: String,
+)
+
 @Serializable
 data class GitHubError(val message: String? = null)

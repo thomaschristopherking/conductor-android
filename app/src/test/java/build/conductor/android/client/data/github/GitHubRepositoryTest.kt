@@ -93,6 +93,16 @@ class GitHubRepositoryTest {
     }
 
     @Test
+    fun `the newest app release skips a draft and a release whose APK is not attached yet`() = runTest {
+        respond("/repos/example-org/example-repo/releases", Fixtures.read("github_releases.json"))
+
+        val release = repository.newestAppRelease(example)
+
+        assertEquals(AppRelease(14, "v0.1.0-release.14", "https://github.com/example-org/example-repo/releases/download/v0.1.0-release.14/conductor-android.apk", 2532069), release)
+        assertEquals("per_page=20", requests.single().url.encodedQuery)
+    }
+
+    @Test
     fun `changed files follow the pages until a short page`() = runTest {
         val fullPage = (1..100).joinToString(",", "[", "]") { """{"filename":"f$it.kt","status":"modified","additions":1,"deletions":0}""" }
         respond("/repos/example-org/example-repo/pulls/13/files?page=1", fullPage)
