@@ -13,8 +13,18 @@ android {
         applicationId = "build.conductor.android.client"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
+        // The release workflow sets the build number, so Android sees each release as an update.
+        versionCode = System.getenv("RELEASE_BUILD_NUMBER")?.toInt() ?: 1
         versionName = "0.1.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            System.getenv("RELEASE_STORE_FILE")?.let { storeFile = file(it) }
+            storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+            keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+            keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+        }
     }
 
     buildTypes {
@@ -22,8 +32,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // The project has no release key; the debug key lets a phone install the optimised build from a file.
-            signingConfig = signingConfigs.getByName("debug")
+            // Only the release workflow has the release key; a local build uses the debug key, which cannot update a published build.
+            signingConfig = signingConfigs.getByName(if (System.getenv("RELEASE_STORE_FILE") != null) "release" else "debug")
         }
     }
 

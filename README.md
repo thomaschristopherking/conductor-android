@@ -58,15 +58,17 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
 
 Make sure that you can install apps from unknown sources on the device.
 
-1. Get `dist/conductor-android.apk` from this repository, or from the prerelease on the Releases page.
+1. Get `conductor-android.apk` from the latest prerelease on the [Releases page](https://github.com/thomaschristopherking/conductor-android/releases).
 2. Install it with one of these methods:
-   - With USB debugging: `adb install -r dist/conductor-android.apk`
+   - With USB debugging: `adb install -r conductor-android.apk`
    - Without a computer: copy the APK to the phone, open it in a file manager, and accept the prompt.
 3. Open **Conductor**.
 4. Create an API key at <https://app.conductor.build/home/api-keys>.
 5. Paste the key, then tap **Test and save**.
 
 The app needs Android 8.0 (API 26) or later.
+
+The release key signs every build on the Releases page, so a new build installs over the earlier one and keeps your keys. Builds 13 and earlier have a different key each. Uninstall such a build one last time first.
 
 ## Build
 
@@ -80,10 +82,9 @@ Commands:
 
 ```bash
 ./gradlew lint testDebugUnitTest assembleRelease
-cp app/build/outputs/apk/release/app-release.apk dist/conductor-android.apk
 ```
 
-The release build is smaller and faster than the debug build. R8 shrinks and optimises the code, and Android can compile the app ahead of time. The project has no release key, so the debug key of the build machine signs the release build.
+The release build is smaller and faster than the debug build. R8 shrinks and optimises the code, and Android can compile the app ahead of time. A local build has no release key, so the debug key of the build machine signs it. Android does not install it over a build from the Releases page. [`docs/RELEASING.md`](docs/RELEASING.md) tells how the release workflow signs the published APK.
 
 Do not put the API key in the build. The app reads the key only from its encrypted storage on the device.
 
@@ -123,7 +124,6 @@ The script sends only `GET` requests. It replaces names, e-mail addresses, repos
 | `app/src/main/.../ui` | Compose screens and view models |
 | `app/src/main/.../notify` | The background service and the periodic check for subscribed workspaces |
 | `scripts/capture_fixtures.py` | Fixture capture |
-| `dist/` | The release APK |
 
 ## Assumptions
 
@@ -159,7 +159,6 @@ I made these decisions without a person to ask.
 - **Write calls are not checked against the live API.** I used the live API for read-only calls, and for one test message that answered a question. Create, rename, archive and cancel are checked against MockWebServer and the OpenAPI spec only.
 - **Long transcripts.** The first time that a session tab opens, it loads the full transcript, 100 messages for each request.
 - **Little offline cache.** Only the home screen keeps its last list on the phone. Workspaces and chats stay in memory only while the app runs.
-- **Debug key.** The debug key of the build machine signs the APK. A build from a different machine has a different key, so Android does not install it over the earlier build. Uninstall the earlier build first.
 - **Background checks.** A notification comes up to 15 seconds after the agent stops. If Android stops the service, the periodic check takes over, and a notification can come 15 minutes late or more. Some phone makers stop background services to save battery. On those phones, set the battery use of the app to "Unrestricted".
 - **Battery.** While an agent works, the app keeps the phone awake and sends requests every 15 seconds. A long agent turn costs battery. Unsubscribe from a workspace that you do not need to follow.
 - **Code blocks.** Code blocks have no syntax colours.
