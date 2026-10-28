@@ -31,6 +31,18 @@ fun RenameDialog(currentName: String, onConfirm: (String) -> Unit, onDismiss: ()
     )
 }
 
+/** Closing the tab of a working session stops its agent, so the user confirms it first. */
+@Composable
+fun CloseWorkingSessionDialog(title: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Close \"$title\"?") },
+        text = { Text("The agent works now. Closing the tab stops the agent and drops its queued messages.") },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Close") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
 @Composable
 fun NewSessionDialog(
     initialSelection: ModelSelection,

@@ -29,6 +29,8 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
   - Tap a tab, or swipe left or right, to go to a different session.
   - A spinner on a tab shows that its agent works. A coloured dot shows a question for you. A red dot shows an error.
   - The "+" tab creates a session. The new session opens in a new tab.
+  - The "×" on the open tab closes it. The app archives the session, and the tab to its right opens. "Undo" opens the closed tab again.
+  - When the agent of a session works, the app asks before it closes the tab. A close stops the agent and drops its queued messages. "Undo" does not start the agent again.
   - The first tab to open is the session from a notification. If there is no notification, it is the session with a question, then a working session, then the first session.
   - When you open a workspace again, its tabs from the last visit show at once while the app reads them again.
   - The tabs show when the status of each session is known. The app then reads the transcripts of the other working sessions to find questions. It waits for those transcripts first only when two or more agents work, because then a question decides the first tab.
@@ -107,7 +109,7 @@ The unit tests run on the JVM. They do not need a device or the network.
 - `ui/session/TranscriptScrollTest.kt` shows the chat list in Robolectric. It tests the scroll position and the button that goes to the newest message.
 - `ui/session/MessageImageTest.kt` tests the card for a picture that is a workspace file.
 - `ui/session/CodeBlockTest.kt` tests that a message shows in its first frame, that a long code line wraps, and that the copy buttons copy the code or the full message.
-- `ui/workspace/SessionTabRowTest.kt` and `ui/workspace/WorkspaceDetailViewModelTest.kt` test the session tabs, which tab opens first, and which tabs the app scans for questions.
+- `ui/workspace/SessionTabRowTest.kt` and `ui/workspace/WorkspaceDetailViewModelTest.kt` test the session tabs, which tab opens first, which tabs the app scans for questions, and how a tab closes and opens again.
 
 The fixtures in `app/src/test/resources/fixtures/` are scrubbed copies of live API responses. To capture them again, run:
 

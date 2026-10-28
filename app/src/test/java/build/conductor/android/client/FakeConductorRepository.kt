@@ -2,6 +2,7 @@ package build.conductor.android.client
 
 import build.conductor.android.client.data.ConductorRepository
 import build.conductor.android.client.data.api.ApiException
+import build.conductor.android.client.data.api.ArchivedSession
 import build.conductor.android.client.data.api.ArchivedWorkspace
 import build.conductor.android.client.data.api.CancelledSession
 import build.conductor.android.client.data.api.CreateSessionRequest
@@ -16,6 +17,7 @@ import build.conductor.android.client.data.api.Section
 import build.conductor.android.client.data.api.SentMessage
 import build.conductor.android.client.data.api.Session
 import build.conductor.android.client.data.api.SessionStatus
+import build.conductor.android.client.data.api.UnarchivedSession
 import build.conductor.android.client.data.api.Workspace
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.yield
@@ -43,6 +45,9 @@ class FakeConductorRepository : ConductorRepository {
     val workspaceRequests = mutableListOf<Pair<Int, Boolean>>()
     val archivedWorkspaceIds = mutableListOf<String>()
     var archiveFailure: ApiException? = null
+    val archivedSessionIds = mutableListOf<String>()
+    val unarchivedSessionIds = mutableListOf<String>()
+    var archiveSessionFailure: ApiException? = null
     var sectionsResult: () -> List<Section> = { emptyList() }
     var allWorkspacesResult: (includeArchived: Boolean) -> List<Workspace> = { emptyList() }
     val allWorkspacesRequests = mutableListOf<Boolean>()
@@ -51,6 +56,7 @@ class FakeConductorRepository : ConductorRepository {
     var allWorkspacesGate: CompletableDeferred<Unit>? = null
     var favorites = listOf(FavoriteModel("codex", "gpt-6.1-sol", "high"))
     var sessionsInWorkspace = listOf<Session>()
+    private var archivedSessions = listOf<Session>()
 
     /** While set, the request for the sessions of a workspace waits until the test completes it. */
     var sessionsGate: CompletableDeferred<Unit>? = null
@@ -162,6 +168,24 @@ class FakeConductorRepository : ConductorRepository {
     override suspend fun cancelSession(sessionId: String): CancelledSession {
         cancelCount++
         return CancelledSession("w1", sessionId, "working", canceledQueuedMessages)
+    }
+
+    /** Like the live API, an archived session leaves [sessionsInWorkspace] and an unarchived one comes back. */
+    override suspend fun archiveSession(sessionId: String): ArchivedSession {
+        archiveSessionFailure?.let { throw it }
+        archivedSessionIds += sessionId
+        val (archived, kept) = sessionsInWorkspace.partition { it.id == sessionId }
+        sessionsInWorkspace = kept
+        archivedSessions += archived
+        return ArchivedSession("w1", sessionId, "archived")
+    }
+
+    override suspend fun unarchiveSession(sessionId: String): UnarchivedSession {
+        unarchivedSessionIds += sessionId
+        val (restored, kept) = archivedSessions.partition { it.id == sessionId }
+        archivedSessions = kept
+        sessionsInWorkspace = sessionsInWorkspace + restored
+        return UnarchivedSession("w1", sessionId, "unarchived")
     }
 
     override suspend fun favoriteModels(): List<FavoriteModel> = favorites

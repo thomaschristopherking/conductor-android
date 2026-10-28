@@ -75,6 +75,13 @@ interface ConductorApi {
     @POST("v0/sessions/{sessionId}/messages")
     suspend fun sendMessage(@Path("sessionId") sessionId: String, @Body request: SendMessageRequest): SentMessage
 
+    /** Closes the session's tab: it stops the agent and drops the queued messages. */
+    @POST("v0/sessions/{sessionId}/archive")
+    suspend fun archiveSession(@Path("sessionId") sessionId: String): ArchivedSession
+
+    @POST("v0/sessions/{sessionId}/unarchive")
+    suspend fun unarchiveSession(@Path("sessionId") sessionId: String): UnarchivedSession
+
     @POST("v0/sessions/{sessionId}/cancel")
     suspend fun cancelSession(@Path("sessionId") sessionId: String): CancelledSession
 

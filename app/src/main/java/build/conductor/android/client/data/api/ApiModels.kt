@@ -148,6 +148,21 @@ data class ArchivedWorkspace(
 )
 
 @Serializable
+data class ArchivedSession(
+    val workspaceId: String,
+    val sessionId: String,
+    val status: String,
+    val canceledQueuedMessages: Int = 0,
+)
+
+@Serializable
+data class UnarchivedSession(
+    val workspaceId: String,
+    val sessionId: String,
+    val status: String,
+)
+
+@Serializable
 data class CancelledSession(
     val workspaceId: String,
     val sessionId: String,

@@ -55,6 +55,8 @@ A project contains workspaces. A workspace contains sessions. A session contains
 | `GET /v0/sessions/{id}/messages` | Read the transcript. |
 | `POST /v0/sessions/{id}/messages` | Send a prompt. Body: `{"message": "...", "messageId": "<uuid>"}`. |
 | `POST /v0/sessions/{id}/cancel` | Stop the current agent turn. |
+| `POST /v0/sessions/{id}/archive` | Close the tab of a session. It stops the agent and drops the queued messages. No body. |
+| `POST /v0/sessions/{id}/unarchive` | Open a closed tab again, for "Undo". No body. |
 | `GET /v0/favorite-models` | Put the user's favourite models first in the model picker. |
 
 The background check uses `GET /v0/workspaces/{id}`, `GET /v0/workspaces/{id}/sessions`, `GET /v0/sessions/{id}/status` and `GET /v0/sessions/{id}/messages?after=…` from this table.

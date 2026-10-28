@@ -24,8 +24,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -41,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import build.conductor.android.client.data.AgentStatus
 import build.conductor.android.client.data.WorkspaceState
 import build.conductor.android.client.data.api.Workspace
 import build.conductor.android.client.ui.components.EmptyView
@@ -74,6 +77,7 @@ fun WorkspaceScreen(viewModel: WorkspaceDetailViewModel, actions: WorkspaceScree
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var openDialog by remember { mutableStateOf<WorkspaceDialog?>(null) }
+    var workingSessionToClose by remember { mutableStateOf<SessionRow?>(null) }
     WorkspaceEffects(viewModel, state, snackbarHostState)
     val detail = (state.detail as? LoadState.Loaded)?.value
     val selectedRow = detail?.sessions?.firstOrNull { it.session.id == state.selectedSessionId }
@@ -86,10 +90,18 @@ fun WorkspaceScreen(viewModel: WorkspaceDetailViewModel, actions: WorkspaceScree
     ) { padding ->
         WorkspaceBody(state, viewModel, padding) { sessions ->
             detail?.workspace?.let { PullRequestBar(actions.pullRequestViewModel(it), actions.onConnectGitHub) }
-            SessionTabs(sessions, state.selectedSessionId, viewModel, TabCallbacks(actions.sessionViewModel, snackbarHostState) { openDialog = WorkspaceDialog.NEW_SESSION })
+            val tabActions = SessionTabActions(
+                onSelect = viewModel::selectSession,
+                onClose = { row -> if (row.status == AgentStatus.WORKING) workingSessionToClose = row else viewModel.closeSession(row) },
+                onNewSession = { openDialog = WorkspaceDialog.NEW_SESSION },
+            )
+            SessionTabs(sessions, state.selectedSessionId, viewModel, TabCallbacks(actions.sessionViewModel, snackbarHostState, tabActions))
         }
     }
     WorkspaceDialogs(openDialog, detail?.workspace, state, viewModel, onDismiss = { openDialog = null })
+    workingSessionToClose?.let { row ->
+        CloseWorkingSessionDialog(row.title, onConfirm = { workingSessionToClose = null; viewModel.closeSession(row) }, onDismiss = { workingSessionToClose = null })
+    }
 }
 
 @Composable
@@ -100,6 +112,12 @@ private fun WorkspaceEffects(viewModel: WorkspaceDetailViewModel, state: Workspa
     }
     LaunchedEffect(state.snackbarMessage) {
         state.snackbarMessage?.let { snackbarHostState.showSnackbar(it); viewModel.onSnackbarShown() }
+    }
+    LaunchedEffect(state.closedSession) {
+        val closed = state.closedSession ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar("Closed \"${closed.title}\"", actionLabel = "Undo", duration = SnackbarDuration.Short)
+        if (result == SnackbarResult.ActionPerformed) viewModel.reopenSession(closed)
+        viewModel.onClosedSessionShown(closed)
     }
 }
 
@@ -188,7 +206,7 @@ private fun WorkspaceBody(
 private class TabCallbacks(
     val sessionViewModel: @Composable (SessionRow) -> SessionViewModel,
     val snackbarHostState: SnackbarHostState,
-    val onNewSession: () -> Unit,
+    val tabActions: SessionTabActions,
 )
 
 @Composable
@@ -197,7 +215,7 @@ private fun SessionTabs(sessions: List<SessionRow>, selectedSessionId: String?, 
     val pagerState = rememberPagerState(initialPage = selectedIndex) { sessions.size }
     SyncPagerWithSelection(pagerState, sessions, selectedIndex, viewModel::selectSession)
     Column(modifier = Modifier.fillMaxSize()) {
-        SessionTabRow(sessions, selectedIndex.takeIf { sessions.isNotEmpty() }, onSelect = viewModel::selectSession, onNewSession = callbacks.onNewSession)
+        SessionTabRow(sessions, selectedIndex.takeIf { sessions.isNotEmpty() }, callbacks.tabActions)
         if (sessions.isEmpty()) {
             EmptyView("No sessions", "Tap + to start an agent chat.")
             return@Column
