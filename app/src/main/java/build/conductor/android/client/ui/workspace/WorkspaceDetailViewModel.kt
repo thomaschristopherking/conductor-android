@@ -45,6 +45,8 @@ data class WorkspaceDetailUiState(
     val selectedSessionId: String? = null,
     /** True when the app notifies about the agents in this workspace. */
     val isSubscribed: Boolean = false,
+    /** The session that the user closed last, while the screen offers to reopen it. */
+    val closedSession: SessionRow? = null,
 )
 
 /** What the user enters in the new-session dialog. */
@@ -62,6 +64,9 @@ class WorkspaceDetailViewModel(
     val uiState: StateFlow<WorkspaceDetailUiState> = state.asStateFlow()
     private val statusPermits = Semaphore(MAX_PARALLEL_STATUS_CALLS)
     private var isFirstVisit = true
+
+    /** A refresh that started before an archive finished still lists the session, so this keeps its tab closed. */
+    private val closedSessionIds = mutableSetOf<String>()
 
     init {
         details[workspaceId]?.let(::showSaved) ?: load()
@@ -103,6 +108,35 @@ class WorkspaceDetailViewModel(
 
     fun selectSession(sessionId: String) = state.update { it.copy(selectedSessionId = sessionId) }
 
+    /** Removes the tab now and archives the session. When the open tab closes, the tab next to it opens. */
+    fun closeSession(row: SessionRow) {
+        closedSessionIds += row.session.id
+        state.update { it.withoutSession(row.session.id) }
+        viewModelScope.launch { archiveClosedSession(row) }
+    }
+
+    /** Opens the tab of a closed session again. The agent does not continue the turn that the close stopped. */
+    fun reopenSession(row: SessionRow) = runAction {
+        repository.unarchiveSession(row.session.id)
+        closedSessionIds -= row.session.id
+        fetchDetail()
+        selectSession(row.session.id)
+    }
+
+    /** A second close can replace [row] before its message ends; that close keeps its own message. */
+    fun onClosedSessionShown(row: SessionRow) = state.update { if (it.closedSession == row) it.copy(closedSession = null) else it }
+
+    private suspend fun archiveClosedSession(row: SessionRow) {
+        try {
+            repository.archiveSession(row.session.id)
+            state.update { it.copy(closedSession = row) }
+        } catch (exception: ApiException) {
+            closedSessionIds -= row.session.id
+            state.update { it.copy(snackbarMessage = "Could not close \"${row.title}\". ${exception.message}") }
+            refresh()
+        }
+    }
+
     /** The open session polls its own status; this keeps its tab up to date between refreshes. */
     fun recordSessionStatus(sessionId: String, status: AgentStatus, hasOpenQuestion: Boolean) = state.update { current ->
         current.copy(detail = current.detail.mapDetail { detail -> detail.withRow(sessionId) { it.copy(status = status, hasOpenQuestion = hasOpenQuestion) } })
@@ -122,8 +156,15 @@ class WorkspaceDetailViewModel(
         }
     }
 
-    private fun show(detail: WorkspaceDetail) = state.update {
-        it.copy(detail = LoadState.Loaded(detail), isRefreshing = false, selectedSessionId = chooseSession(it.selectedSessionId, detail.sessions))
+    private fun show(fetched: WorkspaceDetail) {
+        val detail = withoutClosedSessions(fetched)
+        state.update { it.copy(detail = LoadState.Loaded(detail), isRefreshing = false, selectedSessionId = chooseSession(it.selectedSessionId, detail.sessions)) }
+    }
+
+    /** A list without a closed session shows that the archive is done, so a later unarchive in Conductor shows the tab again. */
+    private fun withoutClosedSessions(fetched: WorkspaceDetail): WorkspaceDetail {
+        closedSessionIds.retainAll(fetched.sessions.map { it.session.id }.toSet())
+        return fetched.copy(sessions = fetched.sessions.filterNot { it.session.id in closedSessionIds })
     }
 
     private suspend fun fetchSessionsWithStatuses(): WorkspaceDetail = coroutineScope {
@@ -247,6 +288,18 @@ internal fun chooseSession(selectedSessionId: String?, sessions: List<SessionRow
         ?: sessions.firstOrNull { it.hasOpenQuestion }?.session?.id
         ?: sessions.firstOrNull { it.status == AgentStatus.WORKING }?.session?.id
         ?: sessions.firstOrNull()?.session?.id
+
+/** The tab to the right of the closed tab opens, or the tab to its left when the closed tab was the last tab. */
+internal fun tabAfterClose(sessions: List<SessionRow>, closedSessionId: String): String? {
+    val index = sessions.indexOfFirst { it.session.id == closedSessionId }
+    return (sessions.getOrNull(index + 1) ?: sessions.getOrNull(index - 1))?.session?.id
+}
+
+private fun WorkspaceDetailUiState.withoutSession(sessionId: String): WorkspaceDetailUiState {
+    val sessions = (detail as? LoadState.Loaded)?.value?.sessions.orEmpty()
+    val selected = if (selectedSessionId == sessionId) tabAfterClose(sessions, sessionId) else selectedSessionId
+    return copy(detail = detail.mapDetail { it.copy(sessions = it.sessions.filterNot { row -> row.session.id == sessionId }) }, selectedSessionId = selected)
+}
 
 private fun WorkspaceDetail.sessionStatuses(): Map<String, String> =
     sessions.mapNotNull { row -> row.status.apiValue?.let { row.session.id to it } }.toMap()

@@ -34,7 +34,7 @@ class SessionTabRowTest {
     @Test
     fun `a tap on a tab selects that session`() {
         var selected: String? = null
-        composeRule.setContent { SessionTabRow(sessions, selectedIndex = 0, onSelect = { selected = it }, onNewSession = {}) }
+        composeRule.setContent { SessionTabRow(sessions, selectedIndex = 0, SessionTabActions(onSelect = { selected = it }, onClose = {}, onNewSession = {})) }
 
         composeRule.onNodeWithText("Fix the importer").assertIsSelected()
         composeRule.onNodeWithText("Untitled session").performClick()
@@ -43,9 +43,20 @@ class SessionTabRowTest {
     }
 
     @Test
+    fun `only the open tab has a close button, and it closes that session`() {
+        var closed: SessionRow? = null
+        composeRule.setContent { SessionTabRow(sessions, selectedIndex = 0, SessionTabActions(onSelect = {}, onClose = { closed = it }, onNewSession = {})) }
+
+        composeRule.onNodeWithContentDescription("Close Untitled session").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Close Fix the importer").performClick()
+
+        assertEquals("s1", closed?.session?.id)
+    }
+
+    @Test
     fun `the last tab starts a new session`() {
         var isNewSessionRequested = false
-        composeRule.setContent { SessionTabRow(emptyList(), selectedIndex = null, onSelect = {}, onNewSession = { isNewSessionRequested = true }) }
+        composeRule.setContent { SessionTabRow(emptyList(), selectedIndex = null, SessionTabActions(onSelect = {}, onClose = {}, onNewSession = { isNewSessionRequested = true })) }
 
         composeRule.onNodeWithContentDescription("New session").performClick()
 

@@ -1,6 +1,7 @@
 package build.conductor.android.client.data
 
 import build.conductor.android.client.data.api.ApiException
+import build.conductor.android.client.data.api.ArchivedSession
 import build.conductor.android.client.data.api.ArchivedWorkspace
 import build.conductor.android.client.data.api.CancelledSession
 import build.conductor.android.client.data.api.ConductorApi
@@ -19,6 +20,7 @@ import build.conductor.android.client.data.api.SendMessageRequest
 import build.conductor.android.client.data.api.SentMessage
 import build.conductor.android.client.data.api.Session
 import build.conductor.android.client.data.api.SessionStatus
+import build.conductor.android.client.data.api.UnarchivedSession
 import build.conductor.android.client.data.api.Workspace
 import build.conductor.android.client.data.api.bearer
 import build.conductor.android.client.data.api.hedge
@@ -53,6 +55,8 @@ interface ConductorRepository {
     suspend fun newMessages(sessionId: String, afterMessageId: String?): List<Message>
     suspend fun sendMessage(sessionId: String, text: String, messageId: String): SentMessage
     suspend fun cancelSession(sessionId: String): CancelledSession
+    suspend fun archiveSession(sessionId: String): ArchivedSession
+    suspend fun unarchiveSession(sessionId: String): UnarchivedSession
     suspend fun favoriteModels(): List<FavoriteModel>
 }
 
@@ -106,6 +110,10 @@ class ApiConductorRepository(
         call { api.sendMessage(sessionId, SendMessageRequest(message = text, messageId = messageId)) }
 
     override suspend fun cancelSession(sessionId: String): CancelledSession = call { api.cancelSession(sessionId) }
+
+    override suspend fun archiveSession(sessionId: String): ArchivedSession = call { api.archiveSession(sessionId) }
+
+    override suspend fun unarchiveSession(sessionId: String): UnarchivedSession = call { api.unarchiveSession(sessionId) }
 
     override suspend fun favoriteModels(): List<FavoriteModel> = read { api.favoriteModels().favoriteModels }
 

@@ -10,6 +10,7 @@ import build.conductor.android.client.data.ModelSelection
 import build.conductor.android.client.data.OpenQuestionTracker
 import build.conductor.android.client.data.QuestionScanner
 import build.conductor.android.client.data.RecentCache
+import build.conductor.android.client.data.api.ApiException
 import build.conductor.android.client.data.api.Session
 import build.conductor.android.client.data.settings.WorkspaceSubscriptions
 import build.conductor.android.client.ui.components.LoadState
@@ -167,6 +168,88 @@ class WorkspaceDetailViewModelTest {
     }
 
     @Test
+    fun `closing the open tab archives its session and opens the tab next to it`() = runTest {
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
+        advanceUntilIdle()
+
+        viewModel.closeSession(sessionRows(viewModel).first())
+        advanceUntilIdle()
+
+        assertEquals(listOf("Two"), sessionRows(viewModel).map { it.title })
+        assertEquals("s2", viewModel.uiState.value.selectedSessionId)
+        assertEquals(listOf("s1"), repository.archivedSessionIds)
+        assertEquals("s1", viewModel.uiState.value.closedSession?.session?.id)
+    }
+
+    @Test
+    fun `closing a tab that is not open keeps the open tab`() = runTest {
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)), initialSessionId = "s1")
+        advanceUntilIdle()
+
+        viewModel.closeSession(sessionRows(viewModel).last())
+        advanceUntilIdle()
+
+        assertEquals("s1", viewModel.uiState.value.selectedSessionId)
+    }
+
+    @Test
+    fun `a refresh that starts before the archive finishes does not show the closed tab again`() = runTest {
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
+        advanceUntilIdle()
+        repository.sessionsGate = CompletableDeferred()
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        viewModel.closeSession(sessionRows(viewModel).first())
+        advanceUntilIdle()
+        // The refresh asked before the archive, so its answer still lists the closed session.
+        repository.sessionsInWorkspace = listOf(Session("s1", "conductor://1", "One"), Session("s2", "conductor://2", "Two"))
+        repository.sessionsGate?.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(listOf("Two"), sessionRows(viewModel).map { it.title })
+    }
+
+    @Test
+    fun `a failed close shows the error and brings the tab back`() = runTest {
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
+        advanceUntilIdle()
+        repository.archiveSessionFailure = ApiException.Server(500, "Try again later.")
+
+        viewModel.closeSession(sessionRows(viewModel).first())
+        advanceUntilIdle()
+
+        assertEquals(listOf("One", "Two"), sessionRows(viewModel).map { it.title })
+        assertEquals("Could not close \"One\". Try again later.", viewModel.uiState.value.snackbarMessage)
+        assertEquals(null, viewModel.uiState.value.closedSession)
+    }
+
+    @Test
+    fun `undo unarchives the closed session and opens its tab`() = runTest {
+        val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
+        advanceUntilIdle()
+        val closed = sessionRows(viewModel).first()
+        viewModel.closeSession(closed)
+        advanceUntilIdle()
+
+        viewModel.reopenSession(closed)
+        advanceUntilIdle()
+
+        assertEquals(listOf("s1"), repository.unarchivedSessionIds)
+        assertEquals(setOf("One", "Two"), sessionRows(viewModel).map { it.title }.toSet())
+        assertEquals("s1", viewModel.uiState.value.selectedSessionId)
+    }
+
+    @Test
+    fun `the tab to the right opens after a close, or the tab to the left when the last tab closes`() {
+        val rows = listOf(row("a", AgentStatus.IDLE), row("b", AgentStatus.IDLE), row("c", AgentStatus.IDLE))
+
+        assertEquals("b", tabAfterClose(rows, "a"))
+        assertEquals("b", tabAfterClose(rows, "c"))
+        assertEquals(null, tabAfterClose(rows.take(1), "a"))
+    }
+
+    @Test
     fun `the open session updates its own tab status`() = runTest {
         val viewModel = WorkspaceDetailViewModel(repository, "w1", OpenQuestionTracker(QuestionScanner(repository)))
         advanceUntilIdle()
@@ -191,6 +274,9 @@ class WorkspaceDetailViewModelTest {
         advanceUntilIdle()
         assertEquals(false, viewModel.uiState.value.isSubscribed)
     }
+
+    private fun sessionRows(viewModel: WorkspaceDetailViewModel): List<SessionRow> =
+        (viewModel.uiState.value.detail as LoadState.Loaded).value.sessions
 
     private fun row(id: String, status: AgentStatus, hasOpenQuestion: Boolean = false) =
         SessionRow(Session(id, "conductor://$id", id), status, hasOpenQuestion)
