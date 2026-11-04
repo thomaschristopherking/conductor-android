@@ -22,6 +22,7 @@ import build.conductor.android.client.data.settings.AppearanceStore
 import build.conductor.android.client.data.settings.ColorSchemeChoice
 import build.conductor.android.client.data.settings.SavedSecret
 import build.conductor.android.client.data.settings.SecretStore
+import build.conductor.android.client.data.settings.VoiceSettingsStore
 import build.conductor.android.client.data.settings.asSavedSecret
 import build.conductor.android.client.data.settings.WorkspaceSubscriptionStore
 import build.conductor.android.client.data.settings.androidKeystoreKey
@@ -32,6 +33,8 @@ import build.conductor.android.client.ui.workspace.WorkspaceDetail
 import build.conductor.android.client.update.AppUpdater
 import build.conductor.android.client.update.HttpApkDownloader
 import build.conductor.android.client.update.PackageInstallerApkInstaller
+import build.conductor.android.client.voice.VoiceController
+import build.conductor.android.client.voice.VoiceFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -44,6 +47,7 @@ import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Creates the app's long-lived objects once. Screens get them through [LocalAppContainer]. */
@@ -113,12 +117,20 @@ class AppContainer(context: Context) {
 
     val workspaceDetails = RecentCache<String, WorkspaceDetail>(MAX_SAVED_WORKSPACES)
 
+    val voiceSettingsStore = VoiceSettingsStore(settingsDataStore)
+
+    private val voiceFilter: StateFlow<VoiceFilter> = voiceSettingsStore.voiceFilter
+        .stateIn(applicationScope, SharingStarted.Eagerly, VoiceFilter.DEFAULT)
+
+    val voiceController = VoiceController(context.applicationContext, repository, transcripts, voiceFilter)
+
     init {
         // The first key is the one saved at start; a later key can belong to a different account.
         applicationScope.launch { apiKeyState.filterNot { it == ApiKeyState.Loading }.drop(1).collect { clearAccountData() } }
     }
 
     private suspend fun clearAccountData() {
+        withContext(Dispatchers.Main) { voiceController.end() }
         homeSnapshots.clear()
         transcripts.clear()
         workspaceDetails.clear()

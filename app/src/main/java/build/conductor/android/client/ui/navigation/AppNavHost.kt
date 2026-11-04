@@ -30,6 +30,7 @@ import build.conductor.android.client.ui.settings.AppearanceViewModel
 import build.conductor.android.client.ui.settings.GitHubSettingsViewModel
 import build.conductor.android.client.ui.settings.SettingsScreen
 import build.conductor.android.client.ui.settings.SettingsViewModel
+import build.conductor.android.client.ui.settings.VoiceSettingsViewModel
 import build.conductor.android.client.ui.workspace.WorkspaceDetailViewModel
 import build.conductor.android.client.ui.workspace.WorkspaceScreen
 import build.conductor.android.client.ui.workspace.WorkspaceScreenActions
@@ -38,7 +39,10 @@ import build.conductor.android.client.ui.workspaces.CreateWorkspaceScreen
 import build.conductor.android.client.ui.workspaces.CreateWorkspaceViewModel
 import build.conductor.android.client.ui.workspaces.WorkspacesScreen
 import build.conductor.android.client.ui.workspaces.WorkspacesViewModel
+import build.conductor.android.client.ui.voice.VoiceButton
+import build.conductor.android.client.ui.voice.VoiceScreen
 import build.conductor.android.client.update.newerRelease
+import build.conductor.android.client.voice.VoiceTarget
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 
@@ -66,6 +70,7 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
                 viewModel = viewModel { SettingsViewModel(container.repository, container.apiKeyStore, container.apiKeyState) },
                 gitHubViewModel = viewModel { GitHubSettingsViewModel(container.gitHubRepository, container.gitHubTokenStore, container.gitHubToken) },
                 appearanceViewModel = viewModel { AppearanceViewModel(container.appearanceStore) },
+                voiceSettingsViewModel = viewModel { VoiceSettingsViewModel(container.voiceSettingsStore) },
                 updateViewModel = viewModel { AppUpdateViewModel(container.appUpdater) },
                 notice = entry.toRoute<SettingsRoute>().notice,
                 onKeySaved = { if (hasPrevious) navController.popBackStack() else navController.openHomeAsRoot() },
@@ -142,6 +147,9 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
                     sessionViewModel = { row ->
                         viewModel(key = row.session.id) { SessionViewModel(container.repository, row.session.id, row.title, container.subscriptionStore, container.transcripts) }
                     },
+                    voiceButton = { row ->
+                        VoiceButton(container.voiceController, row.session.id) { navController.navigate(VoiceRoute(route.workspaceId, row.session.id, row.title)) }
+                    },
                     pullRequestViewModel = { workspace ->
                         viewModel(key = "pull-request/${workspace.id}") { PullRequestViewModel(container.gitHubRepository, container.isGitHubConnected, workspace) }
                     },
@@ -154,6 +162,10 @@ fun AppNavHost(container: AppContainer, hasApiKey: Boolean, requestedSession: Mu
                     onBack = { navController.popBackStack() },
                 ),
             )
+        }
+        composable<VoiceRoute> { entry ->
+            val route = entry.toRoute<VoiceRoute>()
+            VoiceScreen(container.voiceController, VoiceTarget(route.workspaceId, route.sessionId, route.title), onBack = { navController.popBackStack() })
         }
     }
 }
