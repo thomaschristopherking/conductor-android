@@ -60,6 +60,9 @@ fun formatAnswers(questions: List<Question>, answers: List<QuestionAnswer>): Str
     return (listOf(ANSWERS_HEADING) + lines).joinToString("\n")
 }
 
+/** One free answer to all the open questions, for example a spoken reply. */
+fun formatFreeAnswer(text: String): String = "$ANSWERS_HEADING\n${text.trim()}"
+
 /** A plain line about how a question ended, from the text of its tool result. */
 fun describeQuestionResult(result: String): String = when {
     result.startsWith(ANSWERED_PREFIX) -> "Answered in Conductor:" + result.removePrefix(ANSWERED_PREFIX).trimEnd()

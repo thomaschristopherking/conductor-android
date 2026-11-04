@@ -64,6 +64,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     gitHubViewModel: GitHubSettingsViewModel,
     appearanceViewModel: AppearanceViewModel,
+    voiceSettingsViewModel: VoiceSettingsViewModel,
     updateViewModel: AppUpdateViewModel,
     notice: String?,
     onKeySaved: () -> Unit,
@@ -91,6 +92,8 @@ fun SettingsScreen(
             GitHubSection(gitHubViewModel)
             HorizontalDivider()
             ColorSchemeSection(colorScheme, appearanceViewModel::selectColorScheme)
+            HorizontalDivider()
+            VoiceFilterSection(voiceSettingsViewModel)
             HorizontalDivider()
             UpdateSection(updateViewModel)
         }

@@ -23,3 +23,7 @@ data class CreateWorkspaceRoute(val projectId: String, val projectName: String)
 /** [sessionId] chooses the session tab that opens first. */
 @Serializable
 data class WorkspaceRoute(val workspaceId: String, val sessionId: String? = null)
+
+/** Voice mode for one session. [title] is the session name that the app speaks and shows. */
+@Serializable
+data class VoiceRoute(val workspaceId: String, val sessionId: String, val title: String)

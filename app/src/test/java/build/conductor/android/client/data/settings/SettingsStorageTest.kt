@@ -2,6 +2,7 @@ package build.conductor.android.client.data.settings
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import build.conductor.android.client.data.api.SessionStatus
+import build.conductor.android.client.voice.VoiceFilter
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
@@ -52,6 +53,15 @@ class SettingsStorageTest {
         val otherKey = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
 
         assertNull(SecretStore(dataStore, AesGcmCipher { otherKey }, SecretStore.API_KEY).secret.first())
+    }
+
+    @Test
+    fun `the voice filter is near voices until the user picks another one`() = runTest {
+        val store = VoiceSettingsStore(newDataStore("voice"))
+        assertEquals(VoiceFilter.NEAR, store.voiceFilter.first())
+
+        store.saveVoiceFilter(VoiceFilter.VERY_NEAR)
+        assertEquals(VoiceFilter.VERY_NEAR, store.voiceFilter.first())
     }
 
     @Test

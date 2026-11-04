@@ -65,6 +65,8 @@ private enum class WorkspaceDialog { RENAME, NEW_SESSION }
 class WorkspaceScreenActions(
     val sessionViewModel: @Composable (SessionRow) -> SessionViewModel,
     val pullRequestViewModel: @Composable (Workspace) -> PullRequestViewModel,
+    /** The button that opens voice mode for the open session. */
+    val voiceButton: @Composable (SessionRow) -> Unit,
     val onConnectGitHub: () -> Unit,
     val onSubscribeRequested: () -> Unit,
     /** Archives the workspace after an undo window, and leaves the screen. */
@@ -84,7 +86,7 @@ fun WorkspaceScreen(viewModel: WorkspaceDetailViewModel, actions: WorkspaceScree
     val selectedSession = selectedRow?.let { actions.sessionViewModel(it) }
     Scaffold(
         topBar = {
-            WorkspaceTopBar(viewModel, selectedSession, actions) { dialog -> openDialog = dialog }
+            WorkspaceTopBar(viewModel, SelectedSession(selectedRow, selectedSession), actions) { dialog -> openDialog = dialog }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
@@ -123,7 +125,7 @@ private fun WorkspaceEffects(viewModel: WorkspaceDetailViewModel, state: Workspa
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun WorkspaceTopBar(viewModel: WorkspaceDetailViewModel, selectedSession: SessionViewModel?, actions: WorkspaceScreenActions, onDialog: (WorkspaceDialog) -> Unit) {
+private fun WorkspaceTopBar(viewModel: WorkspaceDetailViewModel, selected: SelectedSession, actions: WorkspaceScreenActions, onDialog: (WorkspaceDialog) -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val workspace = (state.detail as? LoadState.Loaded)?.value?.workspace
     TopAppBar(
@@ -132,12 +134,16 @@ private fun WorkspaceTopBar(viewModel: WorkspaceDetailViewModel, selectedSession
             IconButton(onClick = actions.onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
         },
         actions = {
+            selected.row?.let { actions.voiceButton(it) }
             if (workspace != null) SubscribeButton(state.isSubscribed) { if (!state.isSubscribed) actions.onSubscribeRequested(); viewModel.toggleSubscription() }
-            if (selectedSession != null) IconButton(onClick = selectedSession::refresh) { Icon(Icons.Filled.Refresh, contentDescription = "Refresh") }
-            if (workspace != null) WorkspaceMenu(workspace, selectedSession, MenuCallbacks(onDialog, actions.onArchive))
+            selected.viewModel?.let { session -> IconButton(onClick = session::refresh) { Icon(Icons.Filled.Refresh, contentDescription = "Refresh") } }
+            if (workspace != null) WorkspaceMenu(workspace, selected.viewModel, MenuCallbacks(onDialog, actions.onArchive))
         },
     )
 }
+
+/** The session whose tab is open, and its view model. */
+private class SelectedSession(val row: SessionRow?, val viewModel: SessionViewModel?)
 
 @Composable
 private fun WorkspaceTitle(workspace: Workspace?) {

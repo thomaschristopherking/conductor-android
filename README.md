@@ -52,6 +52,21 @@ A native Android client for [Conductor Cloud](https://conductor.build). Use it t
   - When the agent asks you a question, the chat shows the question with its options. Choose the options, or type in "Other", then tap "Send answers".
   - While the agent works, the app polls every 3 seconds for new messages only.
   - The badge shows "Working", "Waiting for you" (the API status `idle`) or "Error".
+- **Voice mode.** Talk to the agent of a session without a look at the screen. Tap the microphone at the top of a workspace. The first time, Android asks for the microphone permission.
+  - The app reads aloud what the agent writes, as the agent writes it. Code blocks and tables become "Code skipped." and "Table skipped.". A file path becomes its file name.
+  - When the app stops, a short tone tells you to speak. Speak your prompt. The app waits 2.5 seconds for more words, then sends the prompt and plays a second tone. Say "cancel" in those 2.5 seconds to drop the prompt.
+  - When the agent finishes its turn, a third tone plays and the microphone opens again.
+  - To interrupt the app, speak over it, tap anywhere on the screen, or press the headset button. If you then say nothing, the app continues from the sentence that it stopped.
+  - If two voice interruptions in a row hear no words, the microphone hears the speaker. Voice interruption then stops for that conversation, and the app tells you. A tap and the headset button still interrupt.
+  - The app reads a question from the agent with its numbered options. Say an option name, a number such as "the second one", or answer in your own words.
+  - Spoken commands: "stop" stops the agent. "Repeat" reads the last reply again. "Continue" reads the rest of an interrupted reply. "Status" tells what the agent does. "Pause" closes the microphone. "End voice" ends voice mode. A command must be the whole sentence, so "stop the build when a test fails" goes to the agent.
+  - After six listens with no speech, about 30 seconds, the microphone closes. The app still reads the agent's messages. The end of a turn or a question opens the microphone again. A tap or the headset button opens it too.
+  - Voice mode continues when you leave the screen or lock the phone. A notification shows it, with "Talk or interrupt" and "End voice" buttons.
+  - The app uses the speech recognizer and the text-to-speech engine of the phone, for example Google. It sends nothing to other services.
+  - **Voice filter.** Settings has three voice filters. "Near voices" is the default. It ignores a voice across the room, for example a TV. "Very near voices" reacts only when you speak close to the phone or into a headset. "Any voice" reacts to every voice.
+    - For a prompt, the voice must be louder than the background of the same listen. The background is the loudness before you start to speak. The app ignores words from a far voice, and tells you one time in each conversation.
+    - To interrupt the app, the voice must also be loud enough at the microphone. The app turns off the automatic gain of the microphone, because the gain makes a far voice as loud as a near one.
+    - The filter applies when voice mode starts. The filter measures distance, not identity, so a person next to you still gets through.
 - **Notifications (optional).** Tap the bell at the top of a workspace to subscribe to it. The app notifies you when an agent in that workspace stops working, stops with an error, or asks you a question. Tap the bell again to stop the notifications.
   - Conductor sends no push messages, so the app checks the workspaces itself. A background service does the checks while the app is closed. Android shows a small notification, "Watching subscribed workspaces", while the service runs. You can hide that notification in the system settings of the app.
   - While an agent works, the app checks every 15 seconds and keeps the phone awake between checks. When no agent works, the app checks every 60 seconds and lets the phone sleep.
@@ -110,6 +125,7 @@ The unit tests run on the JVM. They do not need a device or the network.
 - `ui/session/MessageImageTest.kt` tests the card for a picture that is a workspace file.
 - `ui/session/CodeBlockTest.kt` tests that a message shows in its first frame, that a long code line wraps, and that the copy buttons copy the code or the full message.
 - `ui/workspace/SessionTabRowTest.kt` and `ui/workspace/WorkspaceDetailViewModelTest.kt` test the session tabs, which tab opens first, which tabs the app scans for questions, and how a tab closes and opens again.
+- `voice/VoiceConversationTest.kt` tests a voice conversation with a fake speaker, recognizer and microphone, in virtual time: greeting, sending, reading replies, interruption, commands, questions, pause and connection loss. `voice/AgentLinkTest.kt`, `voice/NearVoiceGateTest.kt`, `voice/SpeechTextTest.kt`, `voice/VoiceCommandsTest.kt` and `voice/VoiceOnsetRuleTest.kt` test its parts. `ui/voice/VoiceScreenTest.kt` shows the voice screen in Robolectric.
 
 The fixtures in `app/src/test/resources/fixtures/` are scrubbed copies of live API responses. To capture them again, run:
 
@@ -173,6 +189,12 @@ I made these decisions without a person to ask.
 - **Pull requests.** The Conductor API has no branch or pull request field, so the app needs a GitHub token and a link or a branch name to find the pull request. A pull request that is older than the 100 most recently updated ones is not found.
 - **Finding a question costs requests.** The status stays "working" while a question waits, so the app reads the transcript to find it. The API returns messages oldest first, so the first look at a long session reads the whole transcript, 100 messages for each request. Later looks read only new messages.
 - **Codex questions.** I tested questions from Claude sessions only.
+- **Voice mode is not tried on a phone.** The tests use a fake speaker, recognizer and microphone. These parts are not checked on a device:
+  - Speech recognition with the screen off. Android can refuse the microphone to the recognizer while the app is in the background. Then voice mode works only with the screen on.
+  - Voice interruption on the loudspeaker. The echo canceller of some phones does not remove the app's own voice. Earphones make voice interruption much more reliable.
+  - The headset button. Android sends it to the app that played sound last, so a music app can take it.
+  - Some recognizers play their own tone each time that they start to listen.
+  - The levels of the voice filter. Each recognizer reports loudness on its own scale, and I chose the levels without a phone. If "Near voices" ignores you, choose "Any voice" in Settings.
 
 ## Contributing
 
